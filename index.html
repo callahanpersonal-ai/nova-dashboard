@@ -1,302 +1,610 @@
-// ═══════════════════════════════════════════════════════════════
-// N.O.V.A. BACKGROUND TRACKER — Runs silently, tracks everything
-// ═══════════════════════════════════════════════════════════════
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>N.O.V.A.</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#050510;color:#c0c8e0;font-family:'SF Mono','Fira Code',Consolas,monospace;min-height:100vh}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#00f0ff15;border-radius:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
 
-// ── CATEGORY RULES ──────────────────────────────────────────────
-const CATEGORIES = {
-  work: {
-    domains: [
-      "github.com","gitlab.com","bitbucket.org","stackoverflow.com",
-      "docs.google.com","drive.google.com","sheets.google.com",
-      "slides.google.com","notion.so","figma.com","linear.app",
-      "jira.atlassian.com","confluence.atlassian.com","trello.com",
-      "asana.com","monday.com","clickup.com","airtable.com",
-      "slack.com","teams.microsoft.com","zoom.us","meet.google.com",
-      "calendar.google.com","outlook.office.com","outlook.live.com",
-      "vercel.com","netlify.com","aws.amazon.com","console.cloud.google.com",
-      "portal.azure.com","heroku.com","digitalocean.com",
-      "codepen.io","codesandbox.io","replit.com",
-      "localhost","127.0.0.1",
-      "chatgpt.com","claude.ai","openai.com","anthropic.com",
-      "kaggle.com","medium.com","dev.to","hashnode.dev",
-      "udemy.com","coursera.org","linkedin.com/learning"
-    ],
-    keywords: ["dashboard","admin","cms","crm","erp","analytics","jira","kanban","sprint"]
-  },
-  social: {
-    domains: [
-      "instagram.com","twitter.com","x.com","facebook.com","fb.com",
-      "tiktok.com","snapchat.com","reddit.com","threads.net",
-      "discord.com","telegram.org","web.telegram.org","whatsapp.com",
-      "messenger.com","tumblr.com","pinterest.com","linkedin.com"
-    ],
-    keywords: []
-  },
-  entertainment: {
-    domains: [
-      "youtube.com","netflix.com","twitch.tv","disneyplus.com",
-      "hulu.com","primevideo.com","crunchyroll.com","hbomax.com",
-      "spotify.com","music.apple.com","soundcloud.com",
-      "store.steampowered.com","epicgames.com","ign.com",
-      "9gag.com","buzzfeed.com","boredpanda.com"
-    ],
-    keywords: []
-  },
-  shopping: {
-    domains: [
-      "amazon.ca","amazon.com","ebay.com","walmart.ca","bestbuy.ca",
-      "etsy.com","aliexpress.com","shein.com","asos.com",
-      "ssense.com","nordstrom.com","aritzia.com","lululemon.com"
-    ],
-    keywords: []
-  },
-  news: {
-    domains: [
-      "cbc.ca","cnn.com","bbc.com","reuters.com","apnews.com",
-      "theglobeandmail.com","nationalpost.com","cp24.com",
-      "nytimes.com","washingtonpost.com","theguardian.com",
-      "techcrunch.com","theverge.com","arstechnica.com","wired.com"
-    ],
-    keywords: []
-  }
+.hdr{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ffffff08;background:#050510e8;position:sticky;top:0;z-index:10;backdrop-filter:blur(20px)}
+.logo{color:#00f0ff;font-size:18px;font-weight:800;letter-spacing:4px;text-shadow:0 0 15px #00f0ff30}
+.tabs{display:flex;border-bottom:1px solid #ffffff06;padding:0 12px}
+.tab{background:transparent;border:none;border-bottom:2px solid transparent;color:#334;padding:10px 16px;font-size:9px;letter-spacing:2px;flex:1;text-align:center}
+.tab.on{background:#00f0ff08;border-bottom-color:#00f0ff;color:#00f0ff}
+.main{padding:16px 14px;max-width:720px;margin:0 auto}
+.card{background:linear-gradient(145deg,#0b0b1e,#0e1019);border-radius:14px;padding:16px;position:relative;overflow:hidden;margin-bottom:14px}
+.card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px}
+.lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.tile{padding:14px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.tile .bar{width:100%;height:6px;background:#111125;border-radius:3px;overflow:hidden}
+.tile .fill{height:100%;border-radius:3px;transition:width 1s ease}
+.cfg-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.cfg-row label{font-size:7px;color:#445;letter-spacing:1px;display:block;margin-bottom:2px}
+.cfg-row input{width:100%;background:#0e0e20;border:1px solid #00f0ff15;border-radius:6px;padding:4px 6px;color:#00f0ff;font-size:11px;outline:none}
+.upload-btn{background:#00f0ff15;border:1px solid #00f0ff25;border-radius:8px;padding:5px 12px;color:#00f0ff;font-size:9px}
+</style>
+<script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════════════════
+// N.O.V.A. v7.0 — SELF-HOSTED PRODUCTION BUILD
+// ═══════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const H = (tag, attrs, ...kids) => {
+  const el = document.createElement(tag);
+  if (attrs) Object.entries(attrs).forEach(([k,v]) => {
+    if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else el.setAttribute(k, v);
+  });
+  kids.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? c : c); });
+  return el;
 };
 
-// ── BREAK SETTINGS ──────────────────────────────────────────────
-const BREAK_INTERVAL_MIN = 90; // Alert after 90 min continuous work
-const IDLE_THRESHOLD_SEC = 300; // 5 min idle = not working
-const SYNC_INTERVAL_MIN = 30; // Push to Google Sheets every 30 min
-const DAILY_RESET_HOUR = 4; // Reset daily stats at 4 AM
+// ── STATE ──
+let state = {
+  tab: 'home',
+  cfg: JSON.parse(localStorage.getItem('nova_cfg') || '{"wb":400,"rent":1450,"income":4204,"stG":8000,"slG":7.5,"gyG":3}'),
+  sheetUrl: localStorage.getItem('nova_sheet_url') || '',
+  sheet: { steps:[], sleep:[], gym:[], laptop:[], ok:false },
+  debitTx: JSON.parse(localStorage.getItem('nova_debit') || '[]'),
+  creditTx: JSON.parse(localStorage.getItem('nova_credit') || '[]'),
+  brief: null,
+  briefLd: false,
+  showCfg: false,
+  sheetStatus: ''
+};
 
-// ── STATE ───────────────────────────────────────────────────────
-let sessionStart = Date.now();
-let lastActiveTime = Date.now();
-let currentCategory = "other";
-let isIdle = false;
+function saveCfg() { localStorage.setItem('nova_cfg', JSON.stringify(state.cfg)); }
+function saveUrl(u) { localStorage.setItem('nova_sheet_url', u); state.sheetUrl = u; }
 
-// ── INIT ────────────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({
-    today: getDateStr(),
-    tracking: {},      // { "work": seconds, "social": seconds, ... }
-    sessions: [],      // [{ start, end, category, domain }]
-    dailyLog: [],      // [{ date, work, social, entertainment, ... }]
-    totalWorkSession: 0,
-    lastBreakTime: Date.now(),
-    gsheetUrl: "",     // User sets this in popup
-    isEnabled: true
-  });
+// ── CATEGORIES ──
+const CAT = {
+  bars:{kw:["bar","pub","liquor","beer","wine","spirits","brewery","taphouse","lounge","lcbo","bc liquor","cold beer","craft beer","the pint","browns social"],i:"🍺",c:"#ff4d6d",l:"Bars & Liquor"},
+  takeout:{kw:["doordash","uber eats","skip the dishes","skipthedishes","fantuan","grubhub","postmates","just eat","instacart"],i:"🥡",c:"#ff8c00",l:"Takeout"},
+  healthy:{kw:["salad","juice","smoothie","poke","acai","vegan","freshii","green","nourish"],i:"🥗",c:"#06d6a0",l:"Healthy Food"},
+  restaurants:{kw:["restaurant","cafe","bistro","grill","sushi","pizza","thai","indian","chinese","japanese","korean","mexican","burger","diner","steakhouse","pho","ramen","taco","chicken","bbq","mcdonald","wendy","popeye","subway","tim horton","a&w","kfc","earls","joey","cactus"],i:"🍽️",c:"#ffd60a",l:"Dining Out"},
+  groceries:{kw:["grocery","superstore","safeway","save-on","no frills","walmart","costco","t&t","h mart","whole foods","iga","loblaws"],i:"🛒",c:"#4cc9f0",l:"Groceries"},
+  social:{kw:["cinema","movie","theatre","concert","ticket","bowling","escape room","arcade","museum","gallery","event","festival","karaoke","golf","cineplex","paintball","laser tag","axe throw"],i:"🎭",c:"#f15bb5",l:"Social"},
+  clothing:{kw:["zara","h&m","uniqlo","nike","adidas","lululemon","aritzia","nordstrom","gap","old navy","winners","simons","ssense","roots","foot locker"],i:"👔",c:"#9b5de5",l:"Clothing"},
+  gym:{kw:["evolve","gym","fitness","yoga","crossfit"],i:"💪",c:"#00b4d8",l:"Fitness"},
+  subscriptions:{kw:["netflix","spotify","apple.com/bill","amazon prime","disney","youtube premium","adobe","openai","chatgpt","microsoft","icloud","crunchyroll","paramount","hulu"],i:"📱",c:"#7209b7",l:"Subscriptions"},
+};
+function classify(d){const lo=d.toLowerCase();for(const[k,v]of Object.entries(CAT))if(v.kw.some(w=>lo.includes(w)))return k;return"other";}
+function fixDate(v){if(!v)return"";const s=String(v);if(s.includes("T"))return s.split("T")[0];return s.slice(0,10);}
+function weekStart(){const n=new Date(),diff=(n.getDay()-5+7)%7,s=new Date(n);s.setDate(s.getDate()-diff);s.setHours(0,0,0,0);return s;}
+function sc(v){return v>=70?"#06d6a0":v>=50?"#ffd60a":"#ff4d6d";}
 
-  // Set up periodic alarm for syncing + break checks
-  chrome.alarms.create("syncData", { periodInMinutes: SYNC_INTERVAL_MIN });
-  chrome.alarms.create("breakCheck", { periodInMinutes: 1 });
-  chrome.alarms.create("dailyReset", { periodInMinutes: 60 });
-  // Track every 10 seconds for accurate time counting
-  chrome.alarms.create("trackTick", { periodInMinutes: 0.167 }); // ~10 seconds
-});
-
-// ── CATEGORIZE URL ──────────────────────────────────────────────
-function categorize(url) {
-  if (!url) return "other";
+// ── FETCH SHEET ──
+async function fetchSheet() {
+  if (!state.sheetUrl) return;
+  state.sheetStatus = 'Connecting...';
+  render();
   try {
-    const hostname = new URL(url).hostname.replace("www.", "");
-    for (const [cat, rules] of Object.entries(CATEGORIES)) {
-      if (rules.domains.some(d => hostname.includes(d))) return cat;
-      if (rules.keywords.some(k => url.toLowerCase().includes(k))) return cat;
-    }
-  } catch (e) {}
-  return "other";
-}
-
-function getDateStr() {
-  return new Date().toISOString().split("T")[0];
-}
-
-// ── TRACK ACTIVE TAB ────────────────────────────────────────────
-async function trackActiveTab() {
-  const data = await chrome.storage.local.get(["tracking", "today", "isEnabled", "totalWorkSession", "lastBreakTime"]);
-  if (!data.isEnabled) return;
-
-  // Daily reset check
-  const today = getDateStr();
-  let tracking = data.tracking || {};
-  if (data.today !== today) {
-    // Save yesterday's data to dailyLog before resetting
-    await saveDailyLog(data.today, tracking);
-    tracking = {};
-    await chrome.storage.local.set({ today, tracking, totalWorkSession: 0, lastBreakTime: Date.now() });
+    const r = await fetch(state.sheetUrl + '?action=all&days=30');
+    const d = await r.json();
+    const pRows = (rows, vi) => (rows||[]).map(r => ({ date: fixDate(r[0]), val: parseFloat(r[vi])||0 }));
+    state.sheet = {
+      steps: pRows(d.steps, 1),
+      sleep: pRows(d.sleep, 1),
+      gym: (d.gym||[]).map(r => ({ date: fixDate(r[0]) })),
+      laptop: (d.laptop||[]).map(r => ({ date:fixDate(r[0]), work:parseFloat(r[1])||0, social:parseFloat(r[2])||0, fun:parseFloat(r[3])||0, total:parseFloat(r[7])||0 })),
+      ok: true
+    };
+    state.sheetStatus = '✓ Connected — ' + state.sheet.steps.length + ' days of data';
+  } catch(e) {
+    state.sheetStatus = '✗ Failed: ' + e.message;
   }
+  render();
+}
 
-  // Get active tab
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tabs[0]?.url) return;
-
-  const cat = categorize(tabs[0].url);
-  const nowMs = Date.now();
-  const elapsed = Math.round((nowMs - lastActiveTime) / 1000);
-
-  // Only count if less than idle threshold (meaning user was active)
-  if (elapsed > 0 && elapsed < IDLE_THRESHOLD_SEC) {
-    tracking[cat] = (tracking[cat] || 0) + elapsed;
-
-    // Track continuous work session
-    let workSession = data.totalWorkSession || 0;
-    if (cat === "work") {
-      workSession += elapsed;
-    } else if (["entertainment", "social"].includes(cat) && elapsed > 60) {
-      // Non-work activity for > 1 min counts as a mini-break
-      workSession = Math.max(0, workSession - elapsed);
+// ── CSV PARSE ──
+function parseCSV(txt) {
+  const lines = txt.split('\n').filter(l=>l.trim());
+  if(lines.length === 0) return [];
+  
+  // Detect if first line is a header (contains letters like "Date" or "Description")
+  const firstLine = lines[0].toLowerCase();
+  const hasHeader = firstLine.includes('date') || firstLine.includes('description') || firstLine.includes('account');
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  
+  return dataLines.map(l => {
+    const p = l.match(/(".*?"|[^,]+)/g)||[];
+    const cl = s => (s||'').replace(/^"|"$/g,'').trim();
+    
+    // Handle date formats
+    let rawDate = cl(p[0]);
+    let date = rawDate;
+    if(rawDate.includes('/')) {
+      const parts = rawDate.split('/');
+      if(parts[2] && parts[2].length === 4) date = parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
+      else if(parts[2] && parts[2].length === 2) date = '20'+parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
     }
+    if(rawDate.includes('T')) date = rawDate.split('T')[0];
+    
+    const desc = cl(p[1]).toUpperCase();
+    
+    // TD CSV has: Date, Description, Debit, Credit, Balance
+    // OR: Date, Description, Amount
+    // Try to figure out which format
+    let amt = 0;
+    if(p.length >= 4) {
+      // TD format: col 2 = debit (money out), col 3 = credit (money in)
+      const debit = parseFloat(cl(p[2])?.replace(/[$,]/g,'')) || 0;
+      const credit = parseFloat(cl(p[3])?.replace(/[$,]/g,'')) || 0;
+      amt = debit > 0 ? debit : credit; // take whichever has a value
+    } else {
+      amt = Math.abs(parseFloat(cl(p[2])?.replace(/[$,]/g,'')) || 0);
+    }
+    
+    return { date, desc, amt, cat: classify(desc) };
+  }).filter(t => t.desc && t.date && t.amt > 0);
+}
 
-    await chrome.storage.local.set({ tracking, totalWorkSession: workSession });
+// ── AI BRIEFING ──
+async function genBrief() {
+  state.briefLd = true; render();
+  const m = computeMetrics();
+  const prompt = `You are N.O.V.A., a personal AI wellness assistant. Write a 4-5 sentence conversational check-in. Warm, perceptive, not robotic. If things are good, say so. Only flag what matters.
+Data: wellness ${m.ws}/100, steps ${m.tdSteps}, sleep ${m.tdSleep>0?m.tdSleep+'h':'no wearable'}, gym ${m.gymWk}x/wk, budget $${m.wkSp.toFixed(0)}/$${state.cfg.wb}, bars ${m.barPw}x/wk, groceries $${m.grSp.toFixed(0)} vs takeout $${m.toSp.toFixed(0)}, social ${m.soPw}x/wk, screen ${m.avgScreen}h/day, surplus $${m.surplus.toFixed(0)}.`;
+  
+  // Try Puter.js AI first (free, no key needed)
+  if (window.puter && window.puter.ai) {
+    try {
+      const r = await puter.ai.chat(prompt, { model: 'claude-sonnet-4-20250514' });
+      // Puter returns various formats — extract text from whatever comes back
+      let txt = '';
+      if (typeof r === 'string') txt = r;
+      else if (r?.message?.content) {
+        if (typeof r.message.content === 'string') txt = r.message.content;
+        else if (Array.isArray(r.message.content)) txt = r.message.content.map(b => b.text || '').join('');
+      }
+      else if (r?.text) txt = r.text;
+      else if (r?.content) {
+        if (typeof r.content === 'string') txt = r.content;
+        else if (Array.isArray(r.content)) txt = r.content.map(b => b.text || '').join('');
+      }
+      else txt = JSON.stringify(r);
+      
+      // Clean up if it still looks like an object
+      if (txt.includes('[object')) txt = '';
+      
+      state.brief = txt || buildFallbackBrief(m);
+      state.briefLd = false; render(); return;
+    } catch(e) { console.log('Puter AI failed', e); }
+  }
+  state.brief = buildFallbackBrief(m);
+  state.briefLd = false; render();
+}
 
-    // Break alert check
-    const workMinutes = workSession / 60;
-    if (workMinutes >= BREAK_INTERVAL_MIN) {
-      chrome.notifications.create("breakAlert", {
-        type: "basic",
-        iconUrl: "icon128.png",
-        title: "N.O.V.A. — Time for a Break",
-        message: `You've been working for ${Math.round(workMinutes)} minutes straight. Stand up, stretch, walk for 10 minutes. Your focus will thank you.`,
-        priority: 2
+function buildFallbackBrief(m) {
+  const hr = new Date().getHours();
+  let t = hr<12?'Good morning. ':'Good afternoon. ';
+  if(m.ws>=70) t+='You\'re in good shape — wellness at '+m.ws+'. ';
+  else t+='Wellness at '+m.ws+' — room to improve. ';
+  if(m.tdSteps>0) t+=m.tdSteps.toLocaleString()+' steps. ';
+  if(m.gymWk<state.cfg.gyG) t+='Gym needs '+(state.cfg.gyG-m.gymWk)+' more session'+(state.cfg.gyG-m.gymWk>1?'s':'')+'. ';
+  if(m.wkSp>state.cfg.wb) t+='Over budget by $'+(m.wkSp-state.cfg.wb).toFixed(0)+'. ';
+  if(m.barPw>1) t+='Watch the bar visits. ';
+  return t;
+}
+
+// ── VOICE BRIEFING (Puter.js OpenAI Nova) ──
+let voicePlaying = false;
+let voiceAudio = null;
+async function playVoice() {
+  if (voicePlaying) { if(voiceAudio){voiceAudio.pause();voiceAudio=null;} voicePlaying=false; render(); return; }
+  if (!state.brief) return;
+  voicePlaying = true; render();
+  if (window.puter && window.puter.ai && window.puter.ai.txt2speech) {
+    try {
+      voiceAudio = await puter.ai.txt2speech(state.brief, {
+        provider:'openai', model:'gpt-4o-mini-tts', voice:'nova', response_format:'mp3',
+        instructions:'Calm, professional, warm female tone. Personal AI assistant briefing.'
       });
-      // Reset work session timer after alert
-      await chrome.storage.local.set({ totalWorkSession: 0, lastBreakTime: Date.now() });
+      voiceAudio.play();
+      voiceAudio.onended = () => { voicePlaying=false; render(); };
+      render(); return;
+    } catch(e) { console.log('Voice failed', e); }
+  }
+  // Fallback browser voice
+  if('speechSynthesis' in window){
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(state.brief);u.rate=0.95;u.pitch=1;
+    const v=speechSynthesis.getVoices();
+    const best=v.find(x=>x.name.includes('Enhanced')&&x.lang.startsWith('en'))||v.find(x=>x.name==='Samantha')||v.find(x=>x.lang.startsWith('en'));
+    if(best)u.voice=best;
+    u.onend=()=>{voicePlaying=false;render();};
+    speechSynthesis.speak(u);
+  }
+  render();
+}
+
+// ── COMPUTE METRICS ──
+function computeMetrics() {
+  const all = [...state.debitTx, ...state.creditTx];
+  const hasData = all.length > 0;
+  const ws0 = weekStart();
+  const today = new Date().toISOString().split('T')[0];
+
+  const latest = state.sheet.steps.length > 0 ? state.sheet.steps[state.sheet.steps.length-1] : null;
+  const tdSteps = latest ? latest.val : 0;
+  const latestSl = state.sheet.sleep.length > 0 ? state.sheet.sleep[state.sheet.sleep.length-1] : null;
+  const tdSleep = latestSl ? latestSl.val : 0;
+
+  const gymDates = state.sheet.gym.map(r=>r.date);
+  const gymWk = gymDates.filter(d=>{try{return new Date(d)>=ws0}catch(e){return false}}).length
+    + all.filter(t=>{try{return new Date(t.date)>=ws0&&t.cat==='gym'}catch(e){return false}}).length;
+  const gymTotal = gymDates.length + all.filter(t=>t.cat==='gym').length;
+
+  const wkLaptop = state.sheet.laptop.filter(r=>{try{return new Date(r.date)>=ws0}catch(e){return false}});
+  const avgScreen = wkLaptop.length>0?+(wkLaptop.reduce((s,r)=>s+r.total,0)/wkLaptop.length).toFixed(1):0;
+  const todayLaptop = state.sheet.laptop.find(r=>r.date===today);
+
+  const disc = ['bars','takeout','restaurants','healthy','clothing','social','subscriptions'];
+  const wkTx = state.debitTx.filter(t=>{try{return new Date(t.date)>=ws0&&disc.includes(t.cat)}catch(e){return false}});
+  const wkSp = wkTx.reduce((s,t)=>s+t.amt,0);
+
+  const mS = new Date(new Date().getFullYear(),new Date().getMonth(),1);
+  const varSpend = all.filter(t=>{try{return new Date(t.date)>=mS&&!['subscriptions','rent','transfer'].includes(t.cat)}catch(e){return false}}).reduce((s,t)=>s+t.amt,0);
+  const subsArr = [...new Map(all.filter(t=>t.cat==='subscriptions').map(t=>[t.desc,t])).values()];
+  const subsTot = subsArr.reduce((s,t)=>s+t.amt,0);
+  const surplus = state.cfg.income - state.cfg.rent - subsTot - varSpend;
+
+  const dw = Math.max(1,Math.ceil(all.length/7));
+  const barPw = hasData?+(all.filter(t=>t.cat==='bars').length/dw).toFixed(1):0;
+  const toSp = all.filter(t=>t.cat==='takeout').reduce((s,t)=>s+t.amt,0);
+  const grSp = all.filter(t=>t.cat==='groceries').reduce((s,t)=>s+t.amt,0);
+  const soPw = hasData?+(all.filter(t=>t.cat==='social').length/dw).toFixed(1):0;
+
+  const sleepS=tdSleep>0?Math.min(100,Math.round(tdSleep>=state.cfg.slG?90:tdSleep>=7?75:tdSleep>=6?55:35)):null;
+  const stepsS=tdSteps>0?Math.min(100,Math.round(tdSteps>=state.cfg.stG?90:tdSteps>=6000?70:tdSteps>=4000?50:30)):null;
+  const gymSc=Math.min(100,Math.round(gymWk>=state.cfg.gyG?90:gymWk===2?70:gymWk===1?45:15));
+  const spendS=hasData?Math.min(100,Math.round(wkSp<=state.cfg.wb*0.7?95:wkSp<=state.cfg.wb?80:wkSp<=state.cfg.wb*1.25?50:30)):null;
+  const barS=hasData?Math.min(100,Math.round(barPw<=0.5?95:barPw<=1?80:barPw<=1.5?55:barPw<=2?35:20)):null;
+  const dietS=hasData?Math.min(100,Math.round(grSp>toSp*2?95:grSp>toSp?75:(grSp>0&&toSp>0)?55:toSp>grSp*2?25:50)):null;
+  const socialS=hasData?Math.min(100,Math.round(soPw>=2?95:soPw>=1?80:soPw>=0.5?55:25)):null;
+  const screenS=avgScreen>0?Math.min(100,Math.round(avgScreen<=6?90:avgScreen<=8?75:avgScreen<=10?55:35)):null;
+
+  const scores=[stepsS,gymSc,spendS,barS,dietS,socialS,screenS].filter(x=>x!==null);
+  const ws=scores.length>0?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+
+  const catSp=Object.entries(CAT).map(([k,v])=>({k,...v,tot:all.filter(t=>t.cat===k).reduce((s,t)=>s+t.amt,0),cnt:all.filter(t=>t.cat===k).length})).filter(c=>(c.tot>0||c.cnt>0)&&!['transfer','rent'].includes(c.k)).sort((a,b)=>b.tot-a.tot);
+
+  return {tdSteps,tdSleep,gymWk,gymTotal,gymDates,avgScreen,todayLaptop,wkLaptop,wkSp,varSpend,subsArr,subsTot,surplus,barPw,toSp,grSp,soPw,
+    sleepS,stepsS,gymSc,spendS,barS,dietS,socialS,screenS,ws,catSp,hasData,all};
+}
+
+// ── RENDER ──
+function render() {
+  const app = $('app');
+  app.innerHTML = '';
+  const m = computeMetrics();
+  const wsC = m.ws>=70?'#06d6a0':m.ws>=50?'#ffd60a':'#ff4d6d';
+
+  // Header
+  const hdr = H('div',{class:'hdr'},
+    H('span',{style:{color:'#00f0ff',fontSize:'18px',fontWeight:800,letterSpacing:'4px',textShadow:'0 0 15px #00f0ff30'}},'N.O.V.A'),
+    H('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},
+      H('button',{style:{background:'none',border:'1px solid #00f0ff25',borderRadius:'20px',padding:'4px 12px',color:voicePlaying?'#ff4d6d':'#00f0ff',fontSize:'9px',letterSpacing:'1px'},onClick:playVoice}, voicePlaying?'■ STOP':'🔊 BRIEF ME'),
+      H('button',{style:{background:'none',border:'1px solid #ffffff15',borderRadius:'8px',padding:'3px 8px',color:'#445',fontSize:'9px'},onClick:()=>{state.showCfg=!state.showCfg;render()}},'⚙'),
+      H('span',{style:{color:'#00f0ff40',fontSize:'10px'}},new Date().toLocaleTimeString('en-US',{hour12:false}))
+    )
+  );
+  app.append(hdr);
+
+  // Settings
+  if(state.showCfg){
+    const cfg = H('div',{style:{padding:'12px 16px',background:'#080814',borderBottom:'1px solid #ffffff08'}});
+    // Sheet URL
+    const urlRow = H('div',{style:{marginBottom:'10px'}});
+    urlRow.append(H('div',{style:{fontSize:'8px',color:'#445',letterSpacing:'1px',marginBottom:'3px'}},'Google Sheet Webhook URL'));
+    const urlFlex = H('div',{style:{display:'flex',gap:'6px'}});
+    const urlInput = H('input',{style:{flex:1,background:'#0e0e20',border:'1px solid #00f0ff15',borderRadius:'6px',padding:'5px 8px',color:'#00f0ff',fontSize:'10px',outline:'none'},placeholder:'https://script.google.com/macros/s/...',value:state.sheetUrl});
+    urlInput.addEventListener('input',e=>{state.sheetUrl=e.target.value;saveUrl(e.target.value);});
+    const connectBtn = H('button',{style:{background:'#00f0ff15',border:'1px solid #00f0ff25',borderRadius:'6px',padding:'5px 10px',color:'#00f0ff',fontSize:'9px'},onClick:fetchSheet},state.sheet.ok?'✓ LIVE':'CONNECT');
+    urlFlex.append(urlInput,connectBtn);
+    urlRow.append(urlFlex);
+    if(state.sheetStatus){
+      const stC=state.sheetStatus.startsWith('✓')?'#06d6a0':state.sheetStatus.startsWith('✗')?'#ff4d6d':'#ffd60a';
+      urlRow.append(H('div',{style:{fontSize:'9px',color:stC,marginTop:'4px'}},state.sheetStatus));
     }
-  }
-
-  lastActiveTime = nowMs;
-  currentCategory = cat;
-}
-
-// ── SAVE DAILY LOG ──────────────────────────────────────────────
-async function saveDailyLog(dateStr, tracking) {
-  const data = await chrome.storage.local.get(["dailyLog"]);
-  const log = data.dailyLog || [];
-
-  const entry = {
-    date: dateStr,
-    work: Math.round((tracking.work || 0) / 3600 * 10) / 10,
-    social: Math.round((tracking.social || 0) / 3600 * 10) / 10,
-    entertainment: Math.round((tracking.entertainment || 0) / 3600 * 10) / 10,
-    shopping: Math.round((tracking.shopping || 0) / 3600 * 10) / 10,
-    news: Math.round((tracking.news || 0) / 3600 * 10) / 10,
-    other: Math.round((tracking.other || 0) / 3600 * 10) / 10,
-    total: Math.round(Object.values(tracking).reduce((a, b) => a + b, 0) / 3600 * 10) / 10
-  };
-
-  log.push(entry);
-  // Keep last 90 days
-  const trimmed = log.slice(-90);
-  await chrome.storage.local.set({ dailyLog: trimmed });
-
-  // Also push to Google Sheets
-  await pushToSheets(entry);
-}
-
-// ── GOOGLE SHEETS SYNC ──────────────────────────────────────────
-async function pushToSheets(entry) {
-  const data = await chrome.storage.local.get(["gsheetUrl"]);
-  const url = data.gsheetUrl;
-  if (!url) return;
-
-  try {
-    // Use Google Apps Script Web App endpoint
-    // User deploys a simple Apps Script that accepts POST data
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sheet: "laptop_screentime",
-        ...entry
-      })
+    cfg.append(urlRow);
+    // Config fields
+    const cfgGrid = H('div',{class:'cfg-row'});
+    [{l:'Weekly Budget',k:'wb'},{l:'Income/mo',k:'income'},{l:'Rent',k:'rent'},{l:'Steps Goal',k:'stG'},{l:'Sleep Goal',k:'slG'},{l:'Gym/wk',k:'gyG'}].forEach(f=>{
+      const d=H('div');d.append(H('label',null,f.l));
+      const inp=H('input',{type:'number',value:state.cfg[f.k]});
+      inp.addEventListener('input',e=>{state.cfg[f.k]=+e.target.value||0;saveCfg();});
+      d.append(inp);cfgGrid.append(d);
     });
-  } catch (e) {
-    console.error("N.O.V.A. sync error:", e);
+    cfg.append(cfgGrid);
+    cfg.append(H('button',{style:{marginTop:'8px',background:'#00f0ff10',border:'1px solid #00f0ff20',borderRadius:'8px',padding:'5px 0',color:'#00f0ff',fontSize:'9px',width:'100%'},onClick:()=>{state.showCfg=false;render()}},'DONE'));
+    app.append(cfg);
   }
+
+  // Tabs
+  const tabBar = H('div',{class:'tabs'});
+  ['home','body','money','screen'].forEach(t=>{
+    tabBar.append(H('button',{class:'tab'+(state.tab===t?' on':''),onClick:()=>{state.tab=t;render()}},t.toUpperCase()));
+  });
+  app.append(tabBar);
+
+  const main = H('div',{class:'main'});
+
+  // ═══ HOME ═══
+  if(state.tab==='home'){
+    // Wellness ring
+    const ringCard = H('div',{class:'card',style:{borderColor:wsC+'15',textAlign:'center',padding:'24px'}});
+    ringCard.innerHTML = `<svg width="130" height="130" style="filter:drop-shadow(0 0 6px ${wsC}30)"><circle cx="65" cy="65" r="56" fill="none" stroke="#111125" stroke-width="6"/><circle cx="65" cy="65" r="56" fill="none" stroke="${wsC}" stroke-width="6" stroke-dasharray="${2*Math.PI*56}" stroke-dashoffset="${2*Math.PI*56-(m.ws/100)*2*Math.PI*56}" stroke-linecap="round" transform="rotate(-90 65 65)" style="transition:stroke-dashoffset 1.2s ease"/><text x="65" y="62" text-anchor="middle" fill="${wsC}" font-size="34" font-weight="800" font-family="monospace">${m.ws||'—'}</text><text x="65" y="78" text-anchor="middle" fill="${wsC}99" font-size="9" letter-spacing="2" font-family="monospace">WELLNESS</text></svg>`;
+    
+    // Top rec
+    const recs=[
+      {s:0,t:'A sleep tracker would give you a whole new layer of insight.',on:m.tdSleep===0},
+      {s:m.gymSc,t:m.gymWk===0?'One gym session this week would move the needle.':'One more session at Evolve hits your weekly goal.',on:m.gymSc<70},
+      {s:m.spendS||100,t:'Close to your weekly limit — maybe pause non-essentials.',on:(m.spendS||100)<60},
+      {s:m.barS||100,t:'Bar visits creeping up — swapping one for a home hangout helps.',on:(m.barS||100)<60},
+      {s:m.dietS||100,t:'Takeout outpacing groceries — one meal prep goes a long way.',on:(m.dietS||100)<60},
+    ].filter(r=>r.on).sort((a,b)=>a.s-b.s);
+    const top=recs[0];
+    if(top){
+      const c=sc(top.s);
+      ringCard.append(H('div',{style:{marginTop:'14px',padding:'8px 18px',borderRadius:'12px',background:c+'06',border:'1px solid '+c+'15',display:'inline-block'}},H('span',{style:{fontSize:'11px',color:c}},top.t)));
+    }else if(m.ws>=70){
+      ringCard.append(H('div',{style:{marginTop:'14px',padding:'8px 18px',borderRadius:'12px',background:'#06d6a006',border:'1px solid #06d6a015',display:'inline-block'}},H('span',{style:{fontSize:'11px',color:'#06d6a0'}},"Everything's looking solid.")));
+    }
+    main.append(ringCard);
+
+    // Briefing
+    const briefCard = H('div',{class:'card',style:{borderColor:'#7b2ff715'}});
+    const briefHdr = H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}});
+    briefHdr.append(H('span',{style:{fontSize:'12px'}},'💬'),H('span',{class:'lbl',style:{color:'#7b2ff7'}},'BRIEFING'),H('div',{style:{flex:1}}));
+    briefHdr.append(H('button',{style:{background:'none',border:'1px solid #7b2ff720',borderRadius:'12px',padding:'2px 8px',color:'#7b2ff7',fontSize:'8px'},onClick:()=>{state.brief=null;genBrief();}},'↻ NEW'));
+    briefCard.append(briefHdr);
+    if(state.briefLd) briefCard.append(H('div',{style:{fontSize:'11px',color:'#7b2ff780'}},'Thinking...'));
+    else briefCard.append(H('div',{style:{fontSize:'12px',color:'#c8d0e8',lineHeight:'1.75'}},state.brief||'Connect your Google Sheet and tap NEW for your AI briefing.'));
+    main.append(briefCard);
+
+    // Tiles
+    const tilesGrid = H('div',{class:'grid2'});
+    const tiles = [
+      {icon:'👟',label:'STEPS',score:m.stepsS,detail:m.tdSteps>0?m.tdSteps.toLocaleString()+' yesterday':'Awaiting data',dim:m.stepsS===null},
+      {icon:'🌙',label:'SLEEP',score:m.sleepS,detail:m.tdSleep>0?m.tdSleep+'h last night':'Needs wearable',dim:m.sleepS===null},
+      {icon:'💪',label:'GYM',score:m.gymSc,detail:m.gymWk+'x this week',dim:false},
+      {icon:'💳',label:'BUDGET',score:m.spendS,detail:m.hasData?'$'+m.wkSp.toFixed(0)+' / $'+state.cfg.wb:'Upload CSV',dim:m.spendS===null},
+      {icon:'🍺',label:'DRINKING',score:m.barS,detail:m.barPw>0?m.barPw+'x / week':'Upload CSV',dim:m.barS===null},
+      {icon:'🥗',label:'DIET',score:m.dietS,detail:m.hasData?(m.grSp>m.toSp?'Groceries leading':'Takeout heavy'):'Upload CSV',dim:m.dietS===null},
+      {icon:'🎭',label:'SOCIAL',score:m.socialS,detail:m.soPw>0?m.soPw+'x / week':'Upload CSV',dim:m.socialS===null},
+      {icon:'💻',label:'SCREEN',score:m.screenS,detail:m.avgScreen>0?m.avgScreen+'h/day avg':'Awaiting data',dim:m.screenS===null},
+    ];
+    tiles.forEach(t=>{
+      const c=t.dim?'#333':sc(t.score||50);
+      const tile=H('div',{class:'card tile',style:{borderColor:c+'15',opacity:t.dim?0.45:1}});
+      tile.append(H('span',{style:{fontSize:'20px'}},t.icon));
+      const bar=H('div',{class:'bar'});bar.append(H('div',{class:'fill',style:{width:(t.dim?0:Math.max(8,t.score||0))+'%',background:'linear-gradient(90deg,'+c+'40,'+c+')',boxShadow:t.dim?'none':'0 0 8px '+c+'30'}}));
+      tile.append(bar);
+      tile.append(H('div',{style:{display:'flex',alignItems:'baseline',gap:'3px'}},H('span',{style:{fontSize:'18px',fontWeight:800,color:c}},t.dim?'—':t.score),t.dim?'':H('span',{style:{fontSize:'9px',color:c+'80'}},'/100')));
+      tile.append(H('span',{style:{fontSize:'8px',color:t.dim?'#333':'#556',letterSpacing:'1.5px',textTransform:'uppercase'}},t.label));
+      tile.append(H('span',{style:{fontSize:'10px',color:t.dim?'#333':c+'90',fontWeight:600}},t.detail));
+      tilesGrid.append(tile);
+    });
+    main.append(tilesGrid);
+  }
+
+  // ═══ BODY ═══
+  if(state.tab==='body'){
+    // 30-day averages
+    const avgCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    avgCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'30-DAY TRAILING AVERAGES'));
+    const avgRow=H('div',{style:{display:'flex',justifyContent:'space-around',marginTop:'14px'}});
+    [{v:state.sheet.steps.length>0?(state.sheet.steps.reduce((s,r)=>s+r.val,0)/state.sheet.steps.length/1000).toFixed(1)+'k':'—',l:'STEPS/DAY',c:'#06d6a0'},
+     {v:state.sheet.sleep.length>0?(state.sheet.sleep.reduce((s,r)=>s+r.val,0)/state.sheet.sleep.length).toFixed(1)+'h':'—',l:'SLEEP',c:'#7b2ff7'},
+     {v:m.gymTotal>0?(m.gymTotal/Math.max(1,Math.ceil(30/7))).toFixed(1)+'x':'—',l:'GYM/WK',c:'#ff8c00'}
+    ].forEach(x=>{
+      avgRow.append(H('div',{style:{textAlign:'center'}},H('span',{style:{fontSize:'24px',fontWeight:800,color:x.c}},x.v),H('div',{style:{fontSize:'8px',color:'#556',marginTop:'3px',letterSpacing:'1px'}},x.l)));
+    });
+    avgCard.append(avgRow);
+    if(!state.sheet.ok)avgCard.append(H('div',{style:{fontSize:'8px',color:'#334',textAlign:'center',marginTop:'10px'}},'Connect Google Sheet in ⚙ for live data'));
+    main.append(avgCard);
+
+    // Steps chart
+    if(state.sheet.steps.length>0){
+      const sc2=H('div',{class:'card',style:{borderColor:'#06d6a015'}});
+      sc2.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',null,'👟'),H('span',{class:'lbl',style:{color:'#06d6a0'}},'STEPS'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'8px',color:'#06d6a025'}},'Goal: '+state.cfg.stG.toLocaleString())));
+      const maxSt=Math.max(14000,...state.sheet.steps.map(r=>r.val));
+      const barsDiv=H('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:'80px',position:'relative'}});
+      // Goal line
+      barsDiv.append(H('div',{style:{position:'absolute',bottom:(state.cfg.stG/maxSt)*65+'px',left:0,right:0,borderTop:'1px dashed #06d6a030'}}));
+      state.sheet.steps.slice(-14).forEach((r,i,a)=>{
+        const h=(r.val/maxSt)*65;const last=i===a.length-1;
+        const col=H('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'1px'}});
+        col.append(H('span',{style:{fontSize:'7px',color:last?'#06d6a0':'#06d6a050',fontWeight:last?700:400}},r.val>=1000?(r.val/1000).toFixed(1)+'k':r.val));
+        col.append(H('div',{style:{width:'100%',maxWidth:'20px',height:Math.max(h,2)+'px',borderRadius:'3px 3px 0 0',background:last?'#06d6a0':'#06d6a040',boxShadow:last?'0 0 8px #06d6a030':'none'}}));
+        col.append(H('span',{style:{fontSize:'6px',color:last?'#06d6a0':'#2a2a3a'}},r.date.slice(8)));
+        barsDiv.append(col);
+      });
+      sc2.append(barsDiv);
+      main.append(sc2);
+    }
+
+    // Gym fire calendar
+    const gymCard=H('div',{class:'card',style:{borderColor:'#ff8c0015'}});
+    gymCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',null,'💪'),H('span',{class:'lbl',style:{color:'#ff8c00'}},'EVOLVE STRENGTH'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'9px',color:'#ff8c0050'}},m.gymTotal+' total')));
+    const calDiv=H('div',{style:{display:'flex',gap:'4px',flexWrap:'wrap'}});
+    for(let i=13;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().split('T')[0];
+      const hit=m.gymDates.includes(ds)||m.all.some(t=>t.cat==='gym'&&t.date===ds);
+      const sh=d.toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
+      calDiv.append(H('div',{style:{width:'38px',height:'40px',borderRadius:'8px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',background:hit?'#ff8c0012':'#0a0a16',border:'1px solid '+(hit?'#ff8c0035':'#ffffff06'),boxShadow:hit?'0 0 10px #ff8c0015':'none'}},
+        H('span',{style:{fontSize:hit?'13px':'9px',opacity:hit?1:0.3}},hit?'🔥':'—'),
+        H('span',{style:{fontSize:'6px',color:hit?'#ff8c00':'#333'}},sh)
+      ));
+    }
+    gymCard.append(calDiv);
+    gymCard.append(H('div',{style:{marginTop:'8px',fontSize:'11px',color:m.gymWk>=state.cfg.gyG?'#06d6a0':'#ffd60a',fontWeight:600}},(m.gymWk>=state.cfg.gyG?'✅ ':'⚠️ ')+m.gymWk+'x this week — goal: '+state.cfg.gyG+'x'));
+    main.append(gymCard);
+  }
+
+  // ═══ MONEY ═══
+  if(state.tab==='money'){
+    // Weekly budget
+    const bC=!m.hasData?'#334':m.wkSp<=state.cfg.wb?'#06d6a0':'#ff4d6d';
+    const budgCard=H('div',{class:'card',style:{borderColor:bC+'15',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}});
+    budgCard.innerHTML=`<svg width="80" height="80"><circle cx="40" cy="40" r="33" fill="none" stroke="#111125" stroke-width="5"/><circle cx="40" cy="40" r="33" fill="none" stroke="${bC}" stroke-width="5" stroke-dasharray="${2*Math.PI*33}" stroke-dashoffset="${2*Math.PI*33-(Math.min(100,m.hasData?(m.wkSp/state.cfg.wb)*100:0)/100)*2*Math.PI*33}" stroke-linecap="round" transform="rotate(-90 40 40)"/><text x="40" y="44" text-anchor="middle" fill="${bC}" font-size="14" font-weight="800" font-family="monospace">${m.hasData?'$'+m.wkSp.toFixed(0):'—'}</text></svg>`;
+    const budgInfo=H('div',{style:{flex:1,minWidth:'120px'}});
+    budgInfo.append(H('div',{style:{fontSize:'11px',color:'#667'}},'Weekly budget (Fri–Thu)'));
+    budgInfo.append(H('div',{style:{fontSize:'10px',color:bC,marginTop:'2px'}},m.hasData?(m.wkSp<=state.cfg.wb?'$'+(state.cfg.wb-m.wkSp).toFixed(0)+' left':'$'+(m.wkSp-state.cfg.wb).toFixed(0)+' over'):'Upload debit CSV'));
+    budgCard.append(budgInfo);
+    main.append(budgCard);
+
+    // Monthly overview
+    const moCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    moCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'MONTHLY OVERVIEW'));
+    const moDiv=H('div',{style:{marginTop:'10px'}});
+    [{l:'Income',v:'+$'+state.cfg.income.toLocaleString(),c:'#06d6a0'},
+     {l:'Rent',v:'-$'+state.cfg.rent.toLocaleString(),c:'#ff4d6d'},
+     {l:'Subscriptions',v:m.hasData?'-$'+m.subsTot.toFixed(0):'—',c:'#7209b7'},
+     {l:'Variable',v:m.hasData?'-$'+m.varSpend.toFixed(0):'—',c:'#ff8c00'},
+    ].forEach(r=>{
+      moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#778'}},r.l),H('span',{style:{fontSize:'12px',fontWeight:700,color:r.c}},r.v)));
+    });
+    const surC=m.hasData?(m.surplus>=0?'#06d6a0':'#ff4d6d'):'#445';
+    moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderTop:'1px solid #ffffff10',marginTop:'4px'}},H('span',{style:{fontSize:'11px',fontWeight:700}},'Surplus'),H('span',{style:{fontSize:'15px',fontWeight:800,color:surC}},m.hasData?(m.surplus>=0?'+':'')+' $'+m.surplus.toFixed(0):'—')));
+    moCard.append(moDiv);
+    main.append(moCard);
+
+    // Subscriptions
+    if(m.subsArr.length>0){
+      const subCard=H('div',{class:'card',style:{borderColor:'#7209b715'}});
+      subCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{style:{fontSize:'12px'}},'📱'),H('span',{class:'lbl',style:{color:'#7209b7'}},'SUBSCRIPTIONS'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'10px',color:'#7209b7',fontWeight:700}},'$'+m.subsTot.toFixed(2)+'/mo')));
+      m.subsArr.forEach(s=>{subCard.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#aab'}},s.desc),H('span',{style:{fontSize:'11px',color:'#7209b7',fontWeight:600}},'$'+s.amt.toFixed(2))));});
+      main.append(subCard);
+    }
+
+    // Spending breakdown
+    if(m.catSp.length>0){
+      const spCard=H('div',{class:'card',style:{borderColor:'#4cc9f015'}});
+      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING BREAKDOWN'));
+      const spDiv=H('div',{style:{marginTop:'10px'}});
+      const mx=Math.max(...m.catSp.map(c=>c.tot));
+      m.catSp.forEach(c=>{
+        const row=H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px'}});
+        row.append(H('span',{style:{fontSize:'13px',width:'20px'}},c.i),H('span',{style:{width:'70px',fontSize:'9px',color:'#778'}},c.l));
+        const track=H('div',{style:{flex:1,height:'12px',background:'#0e0e20',borderRadius:'3px',overflow:'hidden'}});
+        track.append(H('div',{style:{width:(mx>0?(c.tot/mx)*100:0)+'%',height:'100%',background:'linear-gradient(90deg,'+c.c+'25,'+c.c+')',borderRadius:'3px'}}));
+        row.append(track,H('span',{style:{width:'50px',textAlign:'right',fontSize:'10px',color:c.c,fontWeight:700}},'$'+c.tot.toFixed(0)));
+        spDiv.append(row);
+      });
+      spCard.append(spDiv);
+      main.append(spCard);
+    }
+
+    // Upload buttons
+    const upGrid=H('div',{class:'grid2'});
+    [{label:'Debit',color:'#00f0ff',data:state.debitTx,key:'debit'},{label:'Credit Card',color:'#7b2ff7',data:state.creditTx,key:'credit'}].forEach(u=>{
+      const card=H('div',{class:'card',style:{borderColor:u.color+'15',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'}});
+      card.append(H('span',{style:{fontSize:'16px'}},u.key==='debit'?'💳':'💎'),H('span',{style:{fontSize:'9px',color:u.color}},u.label));
+      const inp=H('input',{type:'file',accept:'.csv',style:{display:'none'}});
+      inp.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();
+        if(u.key==='debit'){state.debitTx=parseCSV(t);localStorage.setItem('nova_debit',JSON.stringify(state.debitTx));}
+        else{state.creditTx=parseCSV(t);localStorage.setItem('nova_credit',JSON.stringify(state.creditTx));}
+        render();});
+      const btn=H('button',{class:'upload-btn',style:{borderColor:u.color+'25',color:u.color},onClick:()=>inp.click()},u.data.length>0?'✓ '+u.data.length:'UPLOAD');
+      card.append(btn,inp);
+      upGrid.append(card);
+    });
+    main.append(upGrid);
+    main.append(H('div',{style:{fontSize:'9px',color:'#334',textAlign:'center',lineHeight:'1.6',marginTop:'4px'}},'Upload last 30 days from EasyWeb. For accurate weekly tracking, upload every Friday.'));
+  }
+
+  // ═══ SCREEN ═══
+  if(state.tab==='screen'){
+    const todayL=m.todayLaptop;
+    const tCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    tCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'TODAY'));
+    const tGrid=H('div',{class:'grid3',style:{marginTop:'12px'}});
+    [{l:'WORK',v:todayL?todayL.work.toFixed(1):'—',c:'#00b4d8',ic:'⌨️'},{l:'SOCIAL',v:todayL?todayL.social.toFixed(1):'—',c:'#f15bb5',ic:'💬'},{l:'FUN',v:todayL?todayL.fun.toFixed(1):'—',c:'#ffd60a',ic:'🎬'}].forEach(x=>{
+      tGrid.append(H('div',{style:{textAlign:'center'}},H('span',{style:{fontSize:'16px'}},x.ic),H('div',{style:{margin:'4px 0 2px'}},H('span',{style:{fontSize:'22px',fontWeight:800,color:x.c}},x.v),H('span',{style:{fontSize:'9px',color:x.c+'60'}},'h')),H('span',{style:{fontSize:'8px',color:'#556',letterSpacing:'1px'}},x.l)));
+    });
+    tCard.append(tGrid);
+    if(todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'12px',color:'#00f0ff',fontWeight:700}},todayL.total.toFixed(1)+'h total'));
+    if(!todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'10px',color:'#334'}},'Chrome extension pushes data every 30 min'));
+    main.append(tCard);
+
+    // Weekly chart
+    if(m.wkLaptop.length>0){
+      const wCard=H('div',{class:'card',style:{borderColor:'#00b4d815'}});
+      wCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{class:'lbl',style:{color:'#00b4d8'}},'THIS WEEK'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'9px',color:'#00b4d860'}},m.avgScreen.toFixed(1)+'h/day avg')));
+      const bDiv=H('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:'76px'}});
+      const mx=Math.max(12,...m.wkLaptop.map(r=>r.total));
+      m.wkLaptop.forEach((r,i,a)=>{const h=(r.total/mx)*60;const last=i===a.length-1;
+        bDiv.append(H('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'1px'}},
+          H('span',{style:{fontSize:'7px',color:last?'#00b4d8':'#00b4d850'}},r.total.toFixed(1)),
+          H('div',{style:{width:'100%',maxWidth:'20px',height:Math.max(h,2)+'px',borderRadius:'3px 3px 0 0',background:last?'#00b4d8':'#00b4d840'}}),
+          H('span',{style:{fontSize:'6px',color:last?'#00b4d8':'#2a2a3a'}},r.date.slice(8))));
+      });
+      wCard.append(bDiv);main.append(wCard);
+    }
+
+    // Assessment
+    const aCard=H('div',{class:'card',style:{borderColor:(m.avgScreen>8?'#ffd60a':'#06d6a0')+'15'}});
+    aCard.append(H('span',{class:'lbl',style:{color:m.avgScreen>8?'#ffd60a':'#06d6a0'}},'ASSESSMENT'));
+    const msg=m.avgScreen>10?'Screen time is high. Set a hard evening stop and schedule breaks.'
+      :m.avgScreen>8?'Above average — watch for late sessions cutting into sleep.'
+      :m.avgScreen>0?'Screen time is balanced. Good discipline.'
+      :'Connect Google Sheet to see screen analysis.';
+    aCard.append(H('div',{style:{marginTop:'8px',fontSize:'12px',color:'#b8c0d8',lineHeight:'1.6'}},msg));
+    main.append(aCard);
+  }
+
+  main.append(H('div',{style:{marginTop:'24px',padding:'10px 0',borderTop:'1px solid #ffffff04',textAlign:'center'}},H('span',{style:{fontSize:'7px',color:'#151525',letterSpacing:'2px'}},'N.O.V.A. v7.0')));
+  app.append(main);
 }
 
-// ── PERIODIC SYNC (push current day's partial data) ─────────────
-async function periodicSync() {
-  const data = await chrome.storage.local.get(["tracking", "today", "gsheetUrl"]);
-  if (!data.gsheetUrl || !data.tracking) return;
-
-  const tracking = data.tracking;
-  const entry = {
-    date: data.today,
-    work: Math.round((tracking.work || 0) / 3600 * 10) / 10,
-    social: Math.round((tracking.social || 0) / 3600 * 10) / 10,
-    entertainment: Math.round((tracking.entertainment || 0) / 3600 * 10) / 10,
-    shopping: Math.round((tracking.shopping || 0) / 3600 * 10) / 10,
-    news: Math.round((tracking.news || 0) / 3600 * 10) / 10,
-    other: Math.round((tracking.other || 0) / 3600 * 10) / 10,
-    total: Math.round(Object.values(tracking).reduce((a, b) => a + b, 0) / 3600 * 10) / 10,
-    partial: true
-  };
-
-  await pushToSheets(entry);
+// ── BOOT SEQUENCE ──
+function boot(){
+  const app=$('app');
+  app.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+    <div style="position:relative;width:120px;height:120px;margin-bottom:24px">
+      <svg viewBox="0 0 120 120" style="animation:sp 3s linear infinite"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7b2ff7"/></linearGradient></defs>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#00f0ff08" stroke-width="2"/><path d="M60 8 A52 52 0 0 1 112 60" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="color:#00f0ff;font-size:20px;font-weight:800;letter-spacing:4px;text-shadow:0 0 18px #00f0ff40">N.O.V.A</span></div>
+    </div>
+    <div id="bootMsgs" style="display:flex;flex-direction:column;gap:5px"></div>
+  </div>`;
+  const msgs=['Neural interface...','Health telemetry...','Screen tracker...','Financial analysis...','Lifestyle patterns...','Online.'];
+  const container=$('bootMsgs');
+  msgs.forEach((m,i)=>{
+    setTimeout(()=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:'+(i===5?'#06d6a0':'#00f0ff');
+      div.innerHTML='<span style="color:#06d6a0">✓</span>'+m;
+      container.append(div);
+      if(i===5)setTimeout(()=>{
+        if(state.sheetUrl)fetchSheet();
+        render();
+        genBrief();
+      },400);
+    },(i+1)*250);
+  });
 }
 
-// ── IDLE DETECTION ──────────────────────────────────────────────
-chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SEC);
-chrome.idle.onStateChanged.addListener((state) => {
-  isIdle = state !== "active";
-  if (state === "active") {
-    lastActiveTime = Date.now();
-  }
-});
+// Load voices
+if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
 
-// ── TAB CHANGE LISTENERS ────────────────────────────────────────
-chrome.tabs.onActivated.addListener(() => trackActiveTab());
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.url) trackActiveTab();
-});
-chrome.windows.onFocusChanged.addListener(() => trackActiveTab());
-
-// ── ALARMS ──────────────────────────────────────────────────────
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "breakCheck") trackActiveTab();
-  if (alarm.name === "trackTick") trackActiveTab();
-  if (alarm.name === "syncData") periodicSync();
-  if (alarm.name === "dailyReset") trackActiveTab(); // triggers daily reset check
-});
-
-// ── MESSAGE HANDLER (for popup) ─────────────────────────────────
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "getStats") {
-    chrome.storage.local.get(["tracking", "today", "totalWorkSession", "lastBreakTime", "dailyLog"], (data) => {
-      const tracking = data.tracking || {};
-      const workSessionMin = Math.round((data.totalWorkSession || 0) / 60);
-      const stats = {
-        today: data.today,
-        workHrs: ((tracking.work || 0) / 3600).toFixed(1),
-        socialHrs: ((tracking.social || 0) / 3600).toFixed(1),
-        entertainHrs: ((tracking.entertainment || 0) / 3600).toFixed(1),
-        otherHrs: (((tracking.shopping || 0) + (tracking.news || 0) + (tracking.other || 0)) / 3600).toFixed(1),
-        totalHrs: (Object.values(tracking).reduce((a, b) => a + b, 0) / 3600).toFixed(1),
-        workSessionMin,
-        breakNeeded: workSessionMin >= BREAK_INTERVAL_MIN,
-        dailyLog: data.dailyLog || []
-      };
-      sendResponse(stats);
-    });
-    return true; // async response
-  }
-
-  if (msg.type === "setGSheetUrl") {
-    chrome.storage.local.set({ gsheetUrl: msg.url });
-    sendResponse({ ok: true });
-  }
-
-  if (msg.type === "toggleEnabled") {
-    chrome.storage.local.get(["isEnabled"], (data) => {
-      chrome.storage.local.set({ isEnabled: !data.isEnabled });
-      sendResponse({ isEnabled: !data.isEnabled });
-    });
-    return true;
-  }
-
-  if (msg.type === "resetWorkSession") {
-    chrome.storage.local.set({ totalWorkSession: 0, lastBreakTime: Date.now() });
-    sendResponse({ ok: true });
-  }
-});
+boot();
+</script>
+</body>
+</html>
