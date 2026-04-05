@@ -130,7 +130,24 @@ Data: wellness ${m.ws}/100, steps ${m.tdSteps}, sleep ${m.tdSleep>0?m.tdSleep+'h
   if (window.puter && window.puter.ai) {
     try {
       const r = await puter.ai.chat(prompt, { model: 'claude-sonnet-4-20250514' });
-      state.brief = typeof r === 'string' ? r : r?.message?.content || r?.text || 'Tap NEW to retry.';
+      // Puter returns various formats — extract text from whatever comes back
+      let txt = '';
+      if (typeof r === 'string') txt = r;
+      else if (r?.message?.content) {
+        if (typeof r.message.content === 'string') txt = r.message.content;
+        else if (Array.isArray(r.message.content)) txt = r.message.content.map(b => b.text || '').join('');
+      }
+      else if (r?.text) txt = r.text;
+      else if (r?.content) {
+        if (typeof r.content === 'string') txt = r.content;
+        else if (Array.isArray(r.content)) txt = r.content.map(b => b.text || '').join('');
+      }
+      else txt = JSON.stringify(r);
+      
+      // Clean up if it still looks like an object
+      if (txt.includes('[object')) txt = '';
+      
+      state.brief = txt || buildFallbackBrief(m);
       state.briefLd = false; render(); return;
     } catch(e) { console.log('Puter AI failed', e); }
   }
@@ -232,7 +249,7 @@ function computeMetrics() {
 
   const catSp=Object.entries(CAT).map(([k,v])=>({k,...v,tot:all.filter(t=>t.cat===k).reduce((s,t)=>s+t.amt,0),cnt:all.filter(t=>t.cat===k).length})).filter(c=>(c.tot>0||c.cnt>0)&&!['transfer','rent'].includes(c.k)).sort((a,b)=>b.tot-a.tot);
 
-  return {tdSteps,tdSleep,gymWk,gymTotal,gymDates,avgScreen,todayLaptop,wkLaptop,wkSp,varSpend,subsArr,subsTot,surplus,barPw,toSp,grSp,soPw,
+  return {tdSteps,tdSleep,stepsIsToday,gymWk,gymTotal,gymDates,avgScreen,todayLaptop,wkLaptop,wkSp,varSpend,subsArr,subsTot,surplus,barPw,toSp,grSp,soPw,
     sleepS,stepsS,gymSc,spendS,barS,dietS,socialS,screenS,ws,catSp,hasData,all};
 }
 
@@ -329,7 +346,7 @@ function render() {
     // Tiles
     const tilesGrid = H('div',{class:'grid2'});
     const tiles = [
-      {icon:'👟',label:'STEPS',score:m.stepsS,detail:m.tdSteps>0?m.tdSteps.toLocaleString()+' today':'Awaiting data',dim:m.stepsS===null},
+      {icon:'👟',label:'STEPS',score:m.stepsS,detail:m.tdSteps>0?m.tdSteps.toLocaleString()+' yesterday':'Awaiting data',dim:m.stepsS===null},
       {icon:'🌙',label:'SLEEP',score:m.sleepS,detail:m.tdSleep>0?m.tdSleep+'h last night':'Needs wearable',dim:m.sleepS===null},
       {icon:'💪',label:'GYM',score:m.gymSc,detail:m.gymWk+'x this week',dim:false},
       {icon:'💳',label:'BUDGET',score:m.spendS,detail:m.hasData?'$'+m.wkSp.toFixed(0)+' / $'+state.cfg.wb:'Upload CSV',dim:m.spendS===null},
