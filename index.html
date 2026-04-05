@@ -72,14 +72,14 @@ function saveUrl(u) { localStorage.setItem('nova_sheet_url', u); state.sheetUrl 
 
 // ── CATEGORIES ──
 const CAT = {
-  bars:{kw:["bar","pub","liquor","beer","wine","spirits","brewery","taphouse","lounge","lcbo","bc liquor","cold beer","craft beer","the pint","browns social"],i:"🍺",c:"#ff4d6d",l:"Bars & Liquor"},
+  bars:{kw:["bar","pub","liquor","beer","wine","spirits","brewery","taphouse","lounge","lcbo","bc liquor","cold beer","craft beer","the pint","browns social","value on"],i:"🍺",c:"#ff4d6d",l:"Bars & Liquor"},
   takeout:{kw:["doordash","uber eats","skip the dishes","skipthedishes","fantuan","grubhub","postmates","just eat","instacart"],i:"🥡",c:"#ff8c00",l:"Takeout"},
   healthy:{kw:["salad","juice","smoothie","poke","acai","vegan","freshii","green","nourish"],i:"🥗",c:"#06d6a0",l:"Healthy Food"},
-  restaurants:{kw:["restaurant","cafe","bistro","grill","sushi","pizza","thai","indian","chinese","japanese","korean","mexican","burger","diner","steakhouse","pho","ramen","taco","chicken","bbq","mcdonald","wendy","popeye","subway","tim horton","a&w","kfc","earls","joey","cactus"],i:"🍽️",c:"#ffd60a",l:"Dining Out"},
+  restaurants:{kw:["restaurant","cafe","bistro","grill","sushi","pizza","thai","indian","chinese","japanese","korean","mexican","burger","diner","steakhouse","pho","ramen","taco","chicken","bbq","mcdonald","wendy","popeye","subway","tim horton","a&w","kfc","earls","joey","cactus","donair","thyme","spot"],i:"🍽️",c:"#ffd60a",l:"Dining Out"},
   groceries:{kw:["grocery","superstore","safeway","save-on","no frills","walmart","costco","t&t","h mart","whole foods","iga","loblaws"],i:"🛒",c:"#4cc9f0",l:"Groceries"},
   social:{kw:["cinema","movie","theatre","concert","ticket","bowling","escape room","arcade","museum","gallery","event","festival","karaoke","golf","cineplex","paintball","laser tag","axe throw"],i:"🎭",c:"#f15bb5",l:"Social"},
   clothing:{kw:["zara","h&m","uniqlo","nike","adidas","lululemon","aritzia","nordstrom","gap","old navy","winners","simons","ssense","roots","foot locker"],i:"👔",c:"#9b5de5",l:"Clothing"},
-  gym:{kw:["evolve","gym","fitness","yoga","crossfit"],i:"💪",c:"#00b4d8",l:"Fitness"},
+  gym:{kw:["evolve","gym","fitness","yoga","crossfit","body energy"],i:"💪",c:"#00b4d8",l:"Fitness"},
   subscriptions:{kw:["netflix","spotify","apple.com/bill","amazon prime","disney","youtube premium","adobe","openai","chatgpt","microsoft","icloud","crunchyroll","paramount","hulu"],i:"📱",c:"#7209b7",l:"Subscriptions"},
 };
 function classify(d){const lo=d.toLowerCase();for(const[k,v]of Object.entries(CAT))if(v.kw.some(w=>lo.includes(w)))return k;return"other";}
@@ -518,9 +518,18 @@ function render() {
       card.append(H('span',{style:{fontSize:'16px'}},u.key==='debit'?'💳':'💎'),H('span',{style:{fontSize:'9px',color:u.color}},u.label));
       const inp=H('input',{type:'file',accept:'.csv',style:{display:'none'}});
       inp.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();
-        if(u.key==='debit'){state.debitTx=parseCSV(t);localStorage.setItem('nova_debit',JSON.stringify(state.debitTx));}
-        else{state.creditTx=parseCSV(t);localStorage.setItem('nova_credit',JSON.stringify(state.creditTx));}
-        render();});
+        const parsed = parseCSV(t);
+        if(u.key==='debit'){state.debitTx=parsed;localStorage.setItem('nova_debit',JSON.stringify(parsed));}
+        else{state.creditTx=parsed;localStorage.setItem('nova_credit',JSON.stringify(parsed));}
+        render();
+        // Run AI classification on uncategorized transactions
+        await classifyBatch(parsed);
+        // Re-classify with AI results
+        const reclassified = parsed.map(tx => ({...tx, cat: classify(tx.desc)}));
+        if(u.key==='debit'){state.debitTx=reclassified;localStorage.setItem('nova_debit',JSON.stringify(reclassified));}
+        else{state.creditTx=reclassified;localStorage.setItem('nova_credit',JSON.stringify(reclassified));}
+        render();
+      });
       const btn=H('button',{class:'upload-btn',style:{borderColor:u.color+'25',color:u.color},onClick:()=>inp.click()},u.data.length>0?'✓ '+u.data.length:'UPLOAD');
       card.append(btn,inp);
       upGrid.append(card);
