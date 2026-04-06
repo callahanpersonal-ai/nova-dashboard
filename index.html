@@ -80,7 +80,7 @@ const CAT = {
   social:{kw:["cinema","movie","theatre","concert","ticket","bowling","escape room","arcade","museum","gallery","event","festival","karaoke","golf","cineplex","paintball","laser tag","axe throw"],i:"🎭",c:"#f15bb5",l:"Social"},
   clothing:{kw:["zara","h&m","uniqlo","nike","adidas","lululemon","aritzia","nordstrom","gap","old navy","winners","simons","ssense","roots","foot locker"],i:"👔",c:"#9b5de5",l:"Clothing"},
   gym:{kw:["evolve","gym","fitness","yoga","crossfit","body energy"],i:"💪",c:"#00b4d8",l:"Fitness"},
-  subscriptions:{kw:["netflix","spotify","apple.com/bill","amazon prime","disney","youtube premium","adobe","openai","chatgpt","microsoft","icloud","crunchyroll","paramount","hulu"],i:"📱",c:"#7209b7",l:"Subscriptions"},
+  subscriptions:{kw:["netflix","spotify","apple.com/bill","amazon prime","disney","youtube premium","adobe","openai","chatgpt","microsoft","icloud","crunchyroll","paramount","hulu","phone","fido","rogers","telus","koodo","bell","virgin","freedom","shaw","insurance","manulife","sunlife","great-west","internet","hydro","bc hydro","fortis","enbridge","utility"],i:"🔁",c:"#7209b7",l:"Recurring"},
 };
 function classify(d){const lo=d.toLowerCase();for(const[k,v]of Object.entries(CAT))if(v.kw.some(w=>lo.includes(w)))return k;return"other";}
 function fixDate(v){if(!v)return"";const s=String(v);if(s.includes("T"))return s.split("T")[0];return s.slice(0,10);}
@@ -263,25 +263,35 @@ function computeMetrics() {
   const subsTot = subsArr.reduce((s,t)=>s+t.amt,0);
   const surplus = state.cfg.income - state.cfg.rent - subsTot - varSpend;
 
-  const dw = Math.max(1,Math.ceil(all.length/7));
-  const barPw = hasData?+(all.filter(t=>t.cat==='bars').length/dw).toFixed(1):0;
-  const toSp = all.filter(t=>t.cat==='takeout').reduce((s,t)=>s+t.amt,0);
-  const grSp = all.filter(t=>t.cat==='groceries').reduce((s,t)=>s+t.amt,0);
-  const soPw = hasData?+(all.filter(t=>t.cat==='social').length/dw).toFixed(1):0;
+  // Lifestyle — trailing 30 days only
+  const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30);
+  const last30 = all.filter(t => { try { return new Date(t.date) >= thirtyAgo } catch(e) { return false } });
+  const dw30 = Math.max(1, Math.ceil(last30.length / 7));
+  const barPw = last30.length > 0 ? +(last30.filter(t => t.cat === 'bars').length / dw30).toFixed(1) : 0;
+  const toSp = last30.filter(t => t.cat === 'takeout').reduce((s,t) => s + t.amt, 0);
+  const grSp = last30.filter(t => t.cat === 'groceries').reduce((s,t) => s + t.amt, 0);
+  const soPw = last30.length > 0 ? +(last30.filter(t => t.cat === 'social').length / dw30).toFixed(1) : 0;
 
   const sleepS=tdSleep>0?Math.min(100,Math.round(tdSleep>=state.cfg.slG?90:tdSleep>=7?75:tdSleep>=6?55:35)):null;
   const stepsS=tdSteps>0?Math.min(100,Math.round(tdSteps>=state.cfg.stG?90:tdSteps>=6000?70:tdSteps>=4000?50:30)):null;
   const gymSc=Math.min(100,Math.round(gymWk>=state.cfg.gyG?90:gymWk===2?70:gymWk===1?45:15));
   const spendS=hasData?Math.min(100,Math.round(wkSp<=state.cfg.wb*0.7?95:wkSp<=state.cfg.wb?80:wkSp<=state.cfg.wb*1.25?50:30)):null;
-  const barS=hasData?Math.min(100,Math.round(barPw<=0.5?95:barPw<=1?80:barPw<=1.5?55:barPw<=2?35:20)):null;
-  const dietS=hasData?Math.min(100,Math.round(grSp>toSp*2?95:grSp>toSp?75:(grSp>0&&toSp>0)?55:toSp>grSp*2?25:50)):null;
-  const socialS=hasData?Math.min(100,Math.round(soPw>=2?95:soPw>=1?80:soPw>=0.5?55:25)):null;
+  const barS = last30.length > 0 ? Math.min(100, Math.round(barPw <= 0.5 ? 95 : barPw <= 1 ? 80 : barPw <= 1.5 ? 55 : barPw <= 2 ? 35 : 20)) : null;
+  const dietS = last30.length > 0 ? Math.min(100, Math.round(grSp > toSp*2 ? 95 : grSp > toSp ? 75 : (grSp > 0 && toSp > 0) ? 55 : toSp > grSp*2 ? 25 : 50)) : null;
+  const socialS = last30.length > 0 ? Math.min(100, Math.round(soPw >= 2 ? 95 : soPw >= 1 ? 80 : soPw >= 0.5 ? 55 : 25)) : null;
   const screenS=avgScreen>0?Math.min(100,Math.round(avgScreen<=6?90:avgScreen<=8?75:avgScreen<=10?55:35)):null;
 
   const scores=[stepsS,gymSc,spendS,barS,dietS,socialS,screenS].filter(x=>x!==null);
   const ws=scores.length>0?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
 
-  const catSp=Object.entries(CAT).map(([k,v])=>({k,...v,tot:all.filter(t=>t.cat===k).reduce((s,t)=>s+t.amt,0),cnt:all.filter(t=>t.cat===k).length})).filter(c=>(c.tot>0||c.cnt>0)&&!['transfer','rent'].includes(c.k)).sort((a,b)=>b.tot-a.tot);
+  const catSp = Object.entries(CAT).map(([k,v]) => ({
+    k, ...v,
+    tot: mTx.filter(t => t.cat === k).reduce((s,t) => s + t.amt, 0),
+    cnt: mTx.filter(t => t.cat === k).length
+  })).filter(c => (c.tot > 0 || c.cnt > 0) && !['transfer','rent'].includes(c.k)).sort((a,b) => b.tot - a.tot);
+  // Add "Other" for uncategorized monthly transactions
+  const otherTot = mTx.filter(t => t.cat === 'other').reduce((s,t) => s + t.amt, 0);
+  if (otherTot > 0) catSp.push({ k:'other', i:'📦', c:'#667', l:'Other', tot:otherTot, cnt:mTx.filter(t=>t.cat==='other').length });
 
   return {tdSteps,tdSleep,gymWk,gymTotal,gymDates,avgScreen,todayLaptop,wkLaptop,wkSp,varSpend,subsArr,subsTot,surplus,barPw,toSp,grSp,soPw,
     sleepS,stepsS,gymSc,spendS,barS,dietS,socialS,screenS,ws,catSp,hasData,all};
@@ -475,7 +485,149 @@ function render() {
     const moDiv=H('div',{style:{marginTop:'10px'}});
     [{l:'Income',v:'+$'+state.cfg.income.toLocaleString(),c:'#06d6a0'},
      {l:'Rent',v:'-$'+state.cfg.rent.toLocaleString(),c:'#ff4d6d'},
-     {l:'Subscriptions',v:m.hasData?'-$'+m.subsTot.toFixed(0):'—',c:'#7209b7'},
+     {l:'Recurring',v:m.hasData?'-
+     {l:'Variable',v:m.hasData?'-$'+m.varSpend.toFixed(0):'—',c:'#ff8c00'},
+    ].forEach(r=>{
+      moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#778'}},r.l),H('span',{style:{fontSize:'12px',fontWeight:700,color:r.c}},r.v)));
+    });
+    const surC=m.hasData?(m.surplus>=0?'#06d6a0':'#ff4d6d'):'#445';
+    moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderTop:'1px solid #ffffff10',marginTop:'4px'}},H('span',{style:{fontSize:'11px',fontWeight:700}},'Surplus'),H('span',{style:{fontSize:'15px',fontWeight:800,color:surC}},m.hasData?(m.surplus>=0?'+':'')+' $'+m.surplus.toFixed(0):'—')));
+    moCard.append(moDiv);
+    main.append(moCard);
+
+    // Subscriptions
+    if(m.subsArr.length>0){
+      const subCard=H('div',{class:'card',style:{borderColor:'#7209b715'}});
+      subCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{style:{fontSize:'12px'}},'🔁'),H('span',{class:'lbl',style:{color:'#7209b7'}},'RECURRING CHARGES'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'10px',color:'#7209b7',fontWeight:700}},'
+      m.subsArr.forEach(s=>{subCard.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#aab'}},s.desc),H('span',{style:{fontSize:'11px',color:'#7209b7',fontWeight:600}},'$'+s.amt.toFixed(2))));});
+      main.append(subCard);
+    }
+
+    // Spending breakdown
+    if(m.catSp.length>0){
+      const spCard=H('div',{class:'card',style:{borderColor:'#4cc9f015'}});
+      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING THIS MONTH'));
+      const spDiv=H('div',{style:{marginTop:'10px'}});
+      const mx=Math.max(...m.catSp.map(c=>c.tot));
+      m.catSp.forEach(c=>{
+        const row=H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px'}});
+        row.append(H('span',{style:{fontSize:'13px',width:'20px'}},c.i),H('span',{style:{width:'70px',fontSize:'9px',color:'#778'}},c.l));
+        const track=H('div',{style:{flex:1,height:'12px',background:'#0e0e20',borderRadius:'3px',overflow:'hidden'}});
+        track.append(H('div',{style:{width:(mx>0?(c.tot/mx)*100:0)+'%',height:'100%',background:'linear-gradient(90deg,'+c.c+'25,'+c.c+')',borderRadius:'3px'}}));
+        row.append(track,H('span',{style:{width:'50px',textAlign:'right',fontSize:'10px',color:c.c,fontWeight:700}},'$'+c.tot.toFixed(0)));
+        spDiv.append(row);
+      });
+      spCard.append(spDiv);
+      main.append(spCard);
+    }
+
+    // Upload buttons
+    const upGrid=H('div',{class:'grid2'});
+    [{label:'Debit',color:'#00f0ff',data:state.debitTx,key:'debit'},{label:'Credit Card',color:'#7b2ff7',data:state.creditTx,key:'credit'}].forEach(u=>{
+      const card=H('div',{class:'card',style:{borderColor:u.color+'15',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'}});
+      card.append(H('span',{style:{fontSize:'16px'}},u.key==='debit'?'💳':'💎'),H('span',{style:{fontSize:'9px',color:u.color}},u.label));
+      const inp=H('input',{type:'file',accept:'.csv',style:{display:'none'}});
+      inp.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();
+        const parsed = parseCSV(t);
+        if(u.key==='debit'){state.debitTx=parsed;localStorage.setItem('nova_debit',JSON.stringify(parsed));}
+        else{state.creditTx=parsed;localStorage.setItem('nova_credit',JSON.stringify(parsed));}
+        render();
+        // Run AI classification on uncategorized transactions
+        await classifyBatch(parsed);
+        // Re-classify with AI results
+        const reclassified = parsed.map(tx => ({...tx, cat: classify(tx.desc)}));
+        if(u.key==='debit'){state.debitTx=reclassified;localStorage.setItem('nova_debit',JSON.stringify(reclassified));}
+        else{state.creditTx=reclassified;localStorage.setItem('nova_credit',JSON.stringify(reclassified));}
+        render();
+      });
+      const btn=H('button',{class:'upload-btn',style:{borderColor:u.color+'25',color:u.color},onClick:()=>inp.click()},u.data.length>0?'✓ '+u.data.length:'UPLOAD');
+      card.append(btn,inp);
+      upGrid.append(card);
+    });
+    main.append(upGrid);
+    main.append(H('div',{style:{fontSize:'9px',color:'#334',textAlign:'center',lineHeight:'1.6',marginTop:'4px'}},'Upload last 30 days from EasyWeb. For accurate weekly tracking, upload every Friday.'));
+  }
+
+  // ═══ SCREEN ═══
+  if(state.tab==='screen'){
+    const todayL=m.todayLaptop;
+    const tCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    tCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'TODAY'));
+    const tGrid=H('div',{class:'grid3',style:{marginTop:'12px'}});
+    [{l:'WORK',v:todayL?todayL.work.toFixed(1):'—',c:'#00b4d8',ic:'⌨️'},{l:'SOCIAL',v:todayL?todayL.social.toFixed(1):'—',c:'#f15bb5',ic:'💬'},{l:'FUN',v:todayL?todayL.fun.toFixed(1):'—',c:'#ffd60a',ic:'🎬'}].forEach(x=>{
+      tGrid.append(H('div',{style:{textAlign:'center'}},H('span',{style:{fontSize:'16px'}},x.ic),H('div',{style:{margin:'4px 0 2px'}},H('span',{style:{fontSize:'22px',fontWeight:800,color:x.c}},x.v),H('span',{style:{fontSize:'9px',color:x.c+'60'}},'h')),H('span',{style:{fontSize:'8px',color:'#556',letterSpacing:'1px'}},x.l)));
+    });
+    tCard.append(tGrid);
+    if(todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'12px',color:'#00f0ff',fontWeight:700}},todayL.total.toFixed(1)+'h total'));
+    if(!todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'10px',color:'#334'}},'Chrome extension pushes data every 30 min'));
+    main.append(tCard);
+
+    // Weekly chart
+    if(m.wkLaptop.length>0){
+      const wCard=H('div',{class:'card',style:{borderColor:'#00b4d815'}});
+      wCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{class:'lbl',style:{color:'#00b4d8'}},'THIS WEEK'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'9px',color:'#00b4d860'}},m.avgScreen.toFixed(1)+'h/day avg')));
+      const bDiv=H('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:'76px'}});
+      const mx=Math.max(12,...m.wkLaptop.map(r=>r.total));
+      m.wkLaptop.forEach((r,i,a)=>{const h=(r.total/mx)*60;const last=i===a.length-1;
+        bDiv.append(H('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'1px'}},
+          H('span',{style:{fontSize:'7px',color:last?'#00b4d8':'#00b4d850'}},r.total.toFixed(1)),
+          H('div',{style:{width:'100%',maxWidth:'20px',height:Math.max(h,2)+'px',borderRadius:'3px 3px 0 0',background:last?'#00b4d8':'#00b4d840'}}),
+          H('span',{style:{fontSize:'6px',color:last?'#00b4d8':'#2a2a3a'}},r.date.slice(8))));
+      });
+      wCard.append(bDiv);main.append(wCard);
+    }
+
+    // Assessment
+    const aCard=H('div',{class:'card',style:{borderColor:(m.avgScreen>8?'#ffd60a':'#06d6a0')+'15'}});
+    aCard.append(H('span',{class:'lbl',style:{color:m.avgScreen>8?'#ffd60a':'#06d6a0'}},'ASSESSMENT'));
+    const msg=m.avgScreen>10?'Screen time is high. Set a hard evening stop and schedule breaks.'
+      :m.avgScreen>8?'Above average — watch for late sessions cutting into sleep.'
+      :m.avgScreen>0?'Screen time is balanced. Good discipline.'
+      :'Connect Google Sheet to see screen analysis.';
+    aCard.append(H('div',{style:{marginTop:'8px',fontSize:'12px',color:'#b8c0d8',lineHeight:'1.6'}},msg));
+    main.append(aCard);
+  }
+
+  main.append(H('div',{style:{marginTop:'24px',padding:'10px 0',borderTop:'1px solid #ffffff04',textAlign:'center'}},H('span',{style:{fontSize:'7px',color:'#151525',letterSpacing:'2px'}},'N.O.V.A. v7.0')));
+  app.append(main);
+}
+
+// ── BOOT SEQUENCE ──
+function boot(){
+  const app=$('app');
+  app.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+    <div style="position:relative;width:120px;height:120px;margin-bottom:24px">
+      <svg viewBox="0 0 120 120" style="animation:sp 3s linear infinite"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7b2ff7"/></linearGradient></defs>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#00f0ff08" stroke-width="2"/><path d="M60 8 A52 52 0 0 1 112 60" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="color:#00f0ff;font-size:20px;font-weight:800;letter-spacing:4px;text-shadow:0 0 18px #00f0ff40">N.O.V.A</span></div>
+    </div>
+    <div id="bootMsgs" style="display:flex;flex-direction:column;gap:5px"></div>
+  </div>`;
+  const msgs=['Neural interface...','Health telemetry...','Screen tracker...','Financial analysis...','Lifestyle patterns...','Online.'];
+  const container=$('bootMsgs');
+  msgs.forEach((m,i)=>{
+    setTimeout(()=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:'+(i===5?'#06d6a0':'#00f0ff');
+      div.innerHTML='<span style="color:#06d6a0">✓</span>'+m;
+      container.append(div);
+      if(i===5)setTimeout(()=>{
+        if(state.sheetUrl)fetchSheet();
+        render();
+        genBrief();
+      },400);
+    },(i+1)*250);
+  });
+}
+
+// Load voices
+if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
+
+boot();
+</script>
+</body>
+</html>
++m.subsTot.toFixed(0):'—',c:'#7209b7'},
      {l:'Variable',v:m.hasData?'-$'+m.varSpend.toFixed(0):'—',c:'#ff8c00'},
     ].forEach(r=>{
       moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#778'}},r.l),H('span',{style:{fontSize:'12px',fontWeight:700,color:r.c}},r.v)));
@@ -496,7 +648,278 @@ function render() {
     // Spending breakdown
     if(m.catSp.length>0){
       const spCard=H('div',{class:'card',style:{borderColor:'#4cc9f015'}});
-      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING BREAKDOWN'));
+      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING THIS MONTH'));
+      const spDiv=H('div',{style:{marginTop:'10px'}});
+      const mx=Math.max(...m.catSp.map(c=>c.tot));
+      m.catSp.forEach(c=>{
+        const row=H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px'}});
+        row.append(H('span',{style:{fontSize:'13px',width:'20px'}},c.i),H('span',{style:{width:'70px',fontSize:'9px',color:'#778'}},c.l));
+        const track=H('div',{style:{flex:1,height:'12px',background:'#0e0e20',borderRadius:'3px',overflow:'hidden'}});
+        track.append(H('div',{style:{width:(mx>0?(c.tot/mx)*100:0)+'%',height:'100%',background:'linear-gradient(90deg,'+c.c+'25,'+c.c+')',borderRadius:'3px'}}));
+        row.append(track,H('span',{style:{width:'50px',textAlign:'right',fontSize:'10px',color:c.c,fontWeight:700}},'$'+c.tot.toFixed(0)));
+        spDiv.append(row);
+      });
+      spCard.append(spDiv);
+      main.append(spCard);
+    }
+
+    // Upload buttons
+    const upGrid=H('div',{class:'grid2'});
+    [{label:'Debit',color:'#00f0ff',data:state.debitTx,key:'debit'},{label:'Credit Card',color:'#7b2ff7',data:state.creditTx,key:'credit'}].forEach(u=>{
+      const card=H('div',{class:'card',style:{borderColor:u.color+'15',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'}});
+      card.append(H('span',{style:{fontSize:'16px'}},u.key==='debit'?'💳':'💎'),H('span',{style:{fontSize:'9px',color:u.color}},u.label));
+      const inp=H('input',{type:'file',accept:'.csv',style:{display:'none'}});
+      inp.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();
+        const parsed = parseCSV(t);
+        if(u.key==='debit'){state.debitTx=parsed;localStorage.setItem('nova_debit',JSON.stringify(parsed));}
+        else{state.creditTx=parsed;localStorage.setItem('nova_credit',JSON.stringify(parsed));}
+        render();
+        // Run AI classification on uncategorized transactions
+        await classifyBatch(parsed);
+        // Re-classify with AI results
+        const reclassified = parsed.map(tx => ({...tx, cat: classify(tx.desc)}));
+        if(u.key==='debit'){state.debitTx=reclassified;localStorage.setItem('nova_debit',JSON.stringify(reclassified));}
+        else{state.creditTx=reclassified;localStorage.setItem('nova_credit',JSON.stringify(reclassified));}
+        render();
+      });
+      const btn=H('button',{class:'upload-btn',style:{borderColor:u.color+'25',color:u.color},onClick:()=>inp.click()},u.data.length>0?'✓ '+u.data.length:'UPLOAD');
+      card.append(btn,inp);
+      upGrid.append(card);
+    });
+    main.append(upGrid);
+    main.append(H('div',{style:{fontSize:'9px',color:'#334',textAlign:'center',lineHeight:'1.6',marginTop:'4px'}},'Upload last 30 days from EasyWeb. For accurate weekly tracking, upload every Friday.'));
+  }
+
+  // ═══ SCREEN ═══
+  if(state.tab==='screen'){
+    const todayL=m.todayLaptop;
+    const tCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    tCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'TODAY'));
+    const tGrid=H('div',{class:'grid3',style:{marginTop:'12px'}});
+    [{l:'WORK',v:todayL?todayL.work.toFixed(1):'—',c:'#00b4d8',ic:'⌨️'},{l:'SOCIAL',v:todayL?todayL.social.toFixed(1):'—',c:'#f15bb5',ic:'💬'},{l:'FUN',v:todayL?todayL.fun.toFixed(1):'—',c:'#ffd60a',ic:'🎬'}].forEach(x=>{
+      tGrid.append(H('div',{style:{textAlign:'center'}},H('span',{style:{fontSize:'16px'}},x.ic),H('div',{style:{margin:'4px 0 2px'}},H('span',{style:{fontSize:'22px',fontWeight:800,color:x.c}},x.v),H('span',{style:{fontSize:'9px',color:x.c+'60'}},'h')),H('span',{style:{fontSize:'8px',color:'#556',letterSpacing:'1px'}},x.l)));
+    });
+    tCard.append(tGrid);
+    if(todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'12px',color:'#00f0ff',fontWeight:700}},todayL.total.toFixed(1)+'h total'));
+    if(!todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'10px',color:'#334'}},'Chrome extension pushes data every 30 min'));
+    main.append(tCard);
+
+    // Weekly chart
+    if(m.wkLaptop.length>0){
+      const wCard=H('div',{class:'card',style:{borderColor:'#00b4d815'}});
+      wCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{class:'lbl',style:{color:'#00b4d8'}},'THIS WEEK'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'9px',color:'#00b4d860'}},m.avgScreen.toFixed(1)+'h/day avg')));
+      const bDiv=H('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:'76px'}});
+      const mx=Math.max(12,...m.wkLaptop.map(r=>r.total));
+      m.wkLaptop.forEach((r,i,a)=>{const h=(r.total/mx)*60;const last=i===a.length-1;
+        bDiv.append(H('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'1px'}},
+          H('span',{style:{fontSize:'7px',color:last?'#00b4d8':'#00b4d850'}},r.total.toFixed(1)),
+          H('div',{style:{width:'100%',maxWidth:'20px',height:Math.max(h,2)+'px',borderRadius:'3px 3px 0 0',background:last?'#00b4d8':'#00b4d840'}}),
+          H('span',{style:{fontSize:'6px',color:last?'#00b4d8':'#2a2a3a'}},r.date.slice(8))));
+      });
+      wCard.append(bDiv);main.append(wCard);
+    }
+
+    // Assessment
+    const aCard=H('div',{class:'card',style:{borderColor:(m.avgScreen>8?'#ffd60a':'#06d6a0')+'15'}});
+    aCard.append(H('span',{class:'lbl',style:{color:m.avgScreen>8?'#ffd60a':'#06d6a0'}},'ASSESSMENT'));
+    const msg=m.avgScreen>10?'Screen time is high. Set a hard evening stop and schedule breaks.'
+      :m.avgScreen>8?'Above average — watch for late sessions cutting into sleep.'
+      :m.avgScreen>0?'Screen time is balanced. Good discipline.'
+      :'Connect Google Sheet to see screen analysis.';
+    aCard.append(H('div',{style:{marginTop:'8px',fontSize:'12px',color:'#b8c0d8',lineHeight:'1.6'}},msg));
+    main.append(aCard);
+  }
+
+  main.append(H('div',{style:{marginTop:'24px',padding:'10px 0',borderTop:'1px solid #ffffff04',textAlign:'center'}},H('span',{style:{fontSize:'7px',color:'#151525',letterSpacing:'2px'}},'N.O.V.A. v7.0')));
+  app.append(main);
+}
+
+// ── BOOT SEQUENCE ──
+function boot(){
+  const app=$('app');
+  app.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+    <div style="position:relative;width:120px;height:120px;margin-bottom:24px">
+      <svg viewBox="0 0 120 120" style="animation:sp 3s linear infinite"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7b2ff7"/></linearGradient></defs>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#00f0ff08" stroke-width="2"/><path d="M60 8 A52 52 0 0 1 112 60" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="color:#00f0ff;font-size:20px;font-weight:800;letter-spacing:4px;text-shadow:0 0 18px #00f0ff40">N.O.V.A</span></div>
+    </div>
+    <div id="bootMsgs" style="display:flex;flex-direction:column;gap:5px"></div>
+  </div>`;
+  const msgs=['Neural interface...','Health telemetry...','Screen tracker...','Financial analysis...','Lifestyle patterns...','Online.'];
+  const container=$('bootMsgs');
+  msgs.forEach((m,i)=>{
+    setTimeout(()=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:'+(i===5?'#06d6a0':'#00f0ff');
+      div.innerHTML='<span style="color:#06d6a0">✓</span>'+m;
+      container.append(div);
+      if(i===5)setTimeout(()=>{
+        if(state.sheetUrl)fetchSheet();
+        render();
+        genBrief();
+      },400);
+    },(i+1)*250);
+  });
+}
+
+// Load voices
+if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
+
+boot();
+</script>
+</body>
+</html>
++m.subsTot.toFixed(2)+'/mo')));
+      m.subsArr.forEach(s=>{subCard.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#aab'}},s.desc),H('span',{style:{fontSize:'11px',color:'#7209b7',fontWeight:600}},'$'+s.amt.toFixed(2))));});
+      main.append(subCard);
+    }
+
+    // Spending breakdown
+    if(m.catSp.length>0){
+      const spCard=H('div',{class:'card',style:{borderColor:'#4cc9f015'}});
+      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING THIS MONTH'));
+      const spDiv=H('div',{style:{marginTop:'10px'}});
+      const mx=Math.max(...m.catSp.map(c=>c.tot));
+      m.catSp.forEach(c=>{
+        const row=H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px'}});
+        row.append(H('span',{style:{fontSize:'13px',width:'20px'}},c.i),H('span',{style:{width:'70px',fontSize:'9px',color:'#778'}},c.l));
+        const track=H('div',{style:{flex:1,height:'12px',background:'#0e0e20',borderRadius:'3px',overflow:'hidden'}});
+        track.append(H('div',{style:{width:(mx>0?(c.tot/mx)*100:0)+'%',height:'100%',background:'linear-gradient(90deg,'+c.c+'25,'+c.c+')',borderRadius:'3px'}}));
+        row.append(track,H('span',{style:{width:'50px',textAlign:'right',fontSize:'10px',color:c.c,fontWeight:700}},'$'+c.tot.toFixed(0)));
+        spDiv.append(row);
+      });
+      spCard.append(spDiv);
+      main.append(spCard);
+    }
+
+    // Upload buttons
+    const upGrid=H('div',{class:'grid2'});
+    [{label:'Debit',color:'#00f0ff',data:state.debitTx,key:'debit'},{label:'Credit Card',color:'#7b2ff7',data:state.creditTx,key:'credit'}].forEach(u=>{
+      const card=H('div',{class:'card',style:{borderColor:u.color+'15',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'}});
+      card.append(H('span',{style:{fontSize:'16px'}},u.key==='debit'?'💳':'💎'),H('span',{style:{fontSize:'9px',color:u.color}},u.label));
+      const inp=H('input',{type:'file',accept:'.csv',style:{display:'none'}});
+      inp.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();
+        const parsed = parseCSV(t);
+        if(u.key==='debit'){state.debitTx=parsed;localStorage.setItem('nova_debit',JSON.stringify(parsed));}
+        else{state.creditTx=parsed;localStorage.setItem('nova_credit',JSON.stringify(parsed));}
+        render();
+        // Run AI classification on uncategorized transactions
+        await classifyBatch(parsed);
+        // Re-classify with AI results
+        const reclassified = parsed.map(tx => ({...tx, cat: classify(tx.desc)}));
+        if(u.key==='debit'){state.debitTx=reclassified;localStorage.setItem('nova_debit',JSON.stringify(reclassified));}
+        else{state.creditTx=reclassified;localStorage.setItem('nova_credit',JSON.stringify(reclassified));}
+        render();
+      });
+      const btn=H('button',{class:'upload-btn',style:{borderColor:u.color+'25',color:u.color},onClick:()=>inp.click()},u.data.length>0?'✓ '+u.data.length:'UPLOAD');
+      card.append(btn,inp);
+      upGrid.append(card);
+    });
+    main.append(upGrid);
+    main.append(H('div',{style:{fontSize:'9px',color:'#334',textAlign:'center',lineHeight:'1.6',marginTop:'4px'}},'Upload last 30 days from EasyWeb. For accurate weekly tracking, upload every Friday.'));
+  }
+
+  // ═══ SCREEN ═══
+  if(state.tab==='screen'){
+    const todayL=m.todayLaptop;
+    const tCard=H('div',{class:'card',style:{borderColor:'#00f0ff15'}});
+    tCard.append(H('span',{class:'lbl',style:{color:'#00f0ff'}},'TODAY'));
+    const tGrid=H('div',{class:'grid3',style:{marginTop:'12px'}});
+    [{l:'WORK',v:todayL?todayL.work.toFixed(1):'—',c:'#00b4d8',ic:'⌨️'},{l:'SOCIAL',v:todayL?todayL.social.toFixed(1):'—',c:'#f15bb5',ic:'💬'},{l:'FUN',v:todayL?todayL.fun.toFixed(1):'—',c:'#ffd60a',ic:'🎬'}].forEach(x=>{
+      tGrid.append(H('div',{style:{textAlign:'center'}},H('span',{style:{fontSize:'16px'}},x.ic),H('div',{style:{margin:'4px 0 2px'}},H('span',{style:{fontSize:'22px',fontWeight:800,color:x.c}},x.v),H('span',{style:{fontSize:'9px',color:x.c+'60'}},'h')),H('span',{style:{fontSize:'8px',color:'#556',letterSpacing:'1px'}},x.l)));
+    });
+    tCard.append(tGrid);
+    if(todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'12px',color:'#00f0ff',fontWeight:700}},todayL.total.toFixed(1)+'h total'));
+    if(!todayL)tCard.append(H('div',{style:{textAlign:'center',marginTop:'10px',fontSize:'10px',color:'#334'}},'Chrome extension pushes data every 30 min'));
+    main.append(tCard);
+
+    // Weekly chart
+    if(m.wkLaptop.length>0){
+      const wCard=H('div',{class:'card',style:{borderColor:'#00b4d815'}});
+      wCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{class:'lbl',style:{color:'#00b4d8'}},'THIS WEEK'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'9px',color:'#00b4d860'}},m.avgScreen.toFixed(1)+'h/day avg')));
+      const bDiv=H('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:'76px'}});
+      const mx=Math.max(12,...m.wkLaptop.map(r=>r.total));
+      m.wkLaptop.forEach((r,i,a)=>{const h=(r.total/mx)*60;const last=i===a.length-1;
+        bDiv.append(H('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'1px'}},
+          H('span',{style:{fontSize:'7px',color:last?'#00b4d8':'#00b4d850'}},r.total.toFixed(1)),
+          H('div',{style:{width:'100%',maxWidth:'20px',height:Math.max(h,2)+'px',borderRadius:'3px 3px 0 0',background:last?'#00b4d8':'#00b4d840'}}),
+          H('span',{style:{fontSize:'6px',color:last?'#00b4d8':'#2a2a3a'}},r.date.slice(8))));
+      });
+      wCard.append(bDiv);main.append(wCard);
+    }
+
+    // Assessment
+    const aCard=H('div',{class:'card',style:{borderColor:(m.avgScreen>8?'#ffd60a':'#06d6a0')+'15'}});
+    aCard.append(H('span',{class:'lbl',style:{color:m.avgScreen>8?'#ffd60a':'#06d6a0'}},'ASSESSMENT'));
+    const msg=m.avgScreen>10?'Screen time is high. Set a hard evening stop and schedule breaks.'
+      :m.avgScreen>8?'Above average — watch for late sessions cutting into sleep.'
+      :m.avgScreen>0?'Screen time is balanced. Good discipline.'
+      :'Connect Google Sheet to see screen analysis.';
+    aCard.append(H('div',{style:{marginTop:'8px',fontSize:'12px',color:'#b8c0d8',lineHeight:'1.6'}},msg));
+    main.append(aCard);
+  }
+
+  main.append(H('div',{style:{marginTop:'24px',padding:'10px 0',borderTop:'1px solid #ffffff04',textAlign:'center'}},H('span',{style:{fontSize:'7px',color:'#151525',letterSpacing:'2px'}},'N.O.V.A. v7.0')));
+  app.append(main);
+}
+
+// ── BOOT SEQUENCE ──
+function boot(){
+  const app=$('app');
+  app.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+    <div style="position:relative;width:120px;height:120px;margin-bottom:24px">
+      <svg viewBox="0 0 120 120" style="animation:sp 3s linear infinite"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7b2ff7"/></linearGradient></defs>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#00f0ff08" stroke-width="2"/><path d="M60 8 A52 52 0 0 1 112 60" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="color:#00f0ff;font-size:20px;font-weight:800;letter-spacing:4px;text-shadow:0 0 18px #00f0ff40">N.O.V.A</span></div>
+    </div>
+    <div id="bootMsgs" style="display:flex;flex-direction:column;gap:5px"></div>
+  </div>`;
+  const msgs=['Neural interface...','Health telemetry...','Screen tracker...','Financial analysis...','Lifestyle patterns...','Online.'];
+  const container=$('bootMsgs');
+  msgs.forEach((m,i)=>{
+    setTimeout(()=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:'+(i===5?'#06d6a0':'#00f0ff');
+      div.innerHTML='<span style="color:#06d6a0">✓</span>'+m;
+      container.append(div);
+      if(i===5)setTimeout(()=>{
+        if(state.sheetUrl)fetchSheet();
+        render();
+        genBrief();
+      },400);
+    },(i+1)*250);
+  });
+}
+
+// Load voices
+if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();}
+
+boot();
+</script>
+</body>
+</html>
++m.subsTot.toFixed(0):'—',c:'#7209b7'},
+     {l:'Variable',v:m.hasData?'-$'+m.varSpend.toFixed(0):'—',c:'#ff8c00'},
+    ].forEach(r=>{
+      moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#778'}},r.l),H('span',{style:{fontSize:'12px',fontWeight:700,color:r.c}},r.v)));
+    });
+    const surC=m.hasData?(m.surplus>=0?'#06d6a0':'#ff4d6d'):'#445';
+    moDiv.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderTop:'1px solid #ffffff10',marginTop:'4px'}},H('span',{style:{fontSize:'11px',fontWeight:700}},'Surplus'),H('span',{style:{fontSize:'15px',fontWeight:800,color:surC}},m.hasData?(m.surplus>=0?'+':'')+' $'+m.surplus.toFixed(0):'—')));
+    moCard.append(moDiv);
+    main.append(moCard);
+
+    // Subscriptions
+    if(m.subsArr.length>0){
+      const subCard=H('div',{class:'card',style:{borderColor:'#7209b715'}});
+      subCard.append(H('div',{style:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}},H('span',{style:{fontSize:'12px'}},'📱'),H('span',{class:'lbl',style:{color:'#7209b7'}},'SUBSCRIPTIONS'),H('div',{style:{flex:1}}),H('span',{style:{fontSize:'10px',color:'#7209b7',fontWeight:700}},'$'+m.subsTot.toFixed(2)+'/mo')));
+      m.subsArr.forEach(s=>{subCard.append(H('div',{style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #ffffff04'}},H('span',{style:{fontSize:'11px',color:'#aab'}},s.desc),H('span',{style:{fontSize:'11px',color:'#7209b7',fontWeight:600}},'$'+s.amt.toFixed(2))));});
+      main.append(subCard);
+    }
+
+    // Spending breakdown
+    if(m.catSp.length>0){
+      const spCard=H('div',{class:'card',style:{borderColor:'#4cc9f015'}});
+      spCard.append(H('span',{class:'lbl',style:{color:'#4cc9f0'}},'SPENDING THIS MONTH'));
       const spDiv=H('div',{style:{marginTop:'10px'}});
       const mx=Math.max(...m.catSp.map(c=>c.tot));
       m.catSp.forEach(c=>{
